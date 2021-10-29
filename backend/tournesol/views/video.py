@@ -39,8 +39,8 @@ class VideoViewSet(viewsets.ModelViewSet):
         queryset = Video.objects.all()
         search = request.query_params.get('search')
         if search:
-            queryset = queryset.filter(Q(name__icontains=search) |
-                                       Q(description__icontains=search))
+            queryset = queryset.filter(Q(name__search=search) |
+                                       Q(description__search=search))
 
         limit = request.query_params.get('limit')
         if limit and limit.isdigit():
