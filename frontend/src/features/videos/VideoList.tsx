@@ -11,6 +11,8 @@ import VideoCard from '../videos/VideoCard';
 import { CompareNowAction } from 'src/utils/action';
 import { UsersService } from 'src/services/openapi';
 import { useLoginState } from 'src/hooks';
+import { showSuccessAlert, showErrorAlert } from 'src/utils/notifications';
+import { useSnackbar } from 'notistack';
 
 const useStyles = makeStyles(() => ({
   card: {
@@ -24,6 +26,7 @@ function VideoList({
   videos: PaginatedVideoSerializerWithCriteriaList;
 }) {
   const classes = useStyles();
+  const { enqueueSnackbar } = useSnackbar();
   const { isLoggedIn } = useLoginState();
 
   const AddToRateLaterList = ({ videoId }: { videoId: string }) => {
@@ -33,11 +36,30 @@ function VideoList({
         {isLoggedIn && (
           <IconButton
             size="medium"
-            color="secondary"
+            color="secondary" // TODO : add endpoint Rate Later to know if video in rater later List
             onClick={async () => {
-              await UsersService.usersMeVideoRateLaterCreate({
-                video: { video_id } as Video,
+              let flag = false;
+              const rateLaterList =
+                await UsersService.usersMeVideoRateLaterList();
+              rateLaterList.results?.forEach((rateLaterVideo) => {
+                if (rateLaterVideo.video.video_id === video_id) {
+                  flag = true;
+                }
               });
+              if (!flag) {
+                await UsersService.usersMeVideoRateLaterCreate({
+                  video: { video_id } as Video,
+                });
+                showSuccessAlert(
+                  enqueueSnackbar,
+                  'The video has been added to your rate later list.'
+                );
+              } else {
+                showErrorAlert(
+                  enqueueSnackbar,
+                  'The video is already in your rate later list.'
+                );
+              }
             }}
           >
             <AddIcon />
