@@ -5,6 +5,8 @@ import { makeStyles } from '@material-ui/core/styles';
 import Typography from '@material-ui/core/Typography';
 import { Delete as DeleteIcon } from '@material-ui/icons';
 
+import { useSnackbar } from 'notistack';
+
 import { addToRateLaterList } from 'src/features/rateLater/rateLaterAPI';
 import Pagination from 'src/components/Pagination';
 import RateLaterAddForm from 'src/features/rateLater/RateLaterAddForm';
@@ -16,6 +18,7 @@ import { topBarHeight } from 'src/features/frame/components/topbar/TopBar';
 import VideoCard from 'src/features/videos/VideoCard';
 import { CompareNowAction } from 'src/utils/action';
 import { UsersService } from 'src/services/openapi';
+import { showSuccessAlert } from 'src/utils/notifications';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -99,6 +102,7 @@ const RateLaterPage = () => {
   };
 
   const RemoveVideoFromListAction = ({ videoId }: { videoId: string }) => {
+    const { enqueueSnackbar } = useSnackbar();
     const video_id = videoId;
     return (
       <IconButton
@@ -107,6 +111,10 @@ const RateLaterPage = () => {
         onClick={async () => {
           await UsersService.usersMeVideoRateLaterDestroy(video_id);
           await loadList();
+          showSuccessAlert(
+            enqueueSnackbar,
+            'The video has been deleted of your rate later list.'
+          );
         }}
       >
         <DeleteIcon />
