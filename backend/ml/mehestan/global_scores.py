@@ -380,6 +380,7 @@ def get_global_scores(scaled_individual_scores: pd.DataFrame, score_mode: ScoreM
             "deviation": rho_deviation,
         }
 
+    print("finish")
     if len(global_scores) == 0:
         return pd.DataFrame(columns=["entity_id", "score", "uncertainty", "deviation"])
 
