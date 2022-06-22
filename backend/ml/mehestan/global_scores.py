@@ -368,6 +368,7 @@ def get_global_scores(scaled_individual_scores: pd.DataFrame, score_mode: ScoreM
         theta = scores.score
         delta = scores.uncertainty
         pd.set_option('display.max_columns', None)
+        print(score_mode)
         print(scores)
         print(scores.columns)
         rho = QrMed(2 * W, w, theta, delta)
