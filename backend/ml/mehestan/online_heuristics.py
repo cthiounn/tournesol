@@ -280,7 +280,7 @@ def run_online_heuristics(
                 poll.name,
                 criterion,
             )
-
+            print(criterion)
             partial_online_heuristics(criterion)
 
     save_tournesol_score_as_sum_of_criteria(poll)
