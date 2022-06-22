@@ -306,6 +306,7 @@ def compute_scaled_scores(
 
 
 def get_global_scores(scaled_individual_scores: pd.DataFrame, score_mode: ScoreMode):
+    print("start", score_mode)
     df = scaled_individual_scores.copy(deep=False)
     if score_mode == ScoreMode.TRUSTED_ONLY:
         df = df[df["is_trusted"]]
@@ -367,7 +368,7 @@ def get_global_scores(scaled_individual_scores: pd.DataFrame, score_mode: ScoreM
         w = scores.voting_weight
         theta = scores.score
         delta = scores.uncertainty
-        pd.set_option('display.max_columns', None)
+        pd.set_option("display.max_columns", None)
         print(score_mode)
         print(scores)
         print(scores.columns)
