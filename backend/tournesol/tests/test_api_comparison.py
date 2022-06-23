@@ -1052,6 +1052,7 @@ class ComparisonWithMehestanTest(TransactionTestCase):
 
         # Global scores and individual scores related to other users are unchanged
         self.assertEqual(ContributorRatingCriteriaScore.objects.count(), 6)
+        print(EntityCriteriaScore.objects.filter(score_mode="default"))
         self.assertEqual(EntityCriteriaScore.objects.filter(score_mode="default").count(), 4)
 
 
