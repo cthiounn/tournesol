@@ -11,9 +11,9 @@ from django import db
 from core.models import User
 from ml.inputs import MlInput, MlInputFromDb
 from ml.outputs import (
+    insert_or_update_contributor_score,
     save_entity_scores,
     save_tournesol_score_as_sum_of_criteria,
-    insert_or_update_contributor_score,
 )
 from tournesol.models import Entity, Poll
 from tournesol.models.entity_score import ScoreMode
