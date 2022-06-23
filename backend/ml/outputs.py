@@ -174,7 +174,7 @@ def insert_or_update_contributor_score(
         contributor_rating_criteria_score.uncertainty = uncertainty
         contributor_rating_criteria_score.save()
     else:
-        data = [user_id, entity_id, criteria, score, uncertainty]
+        data = [(user_id, entity_id, criteria, score, uncertainty)]
         print(data)
         scores = pd.DataFrame(
             data, columns=["user_id", "entity_id", "criteria", "score", "uncertainty"]
