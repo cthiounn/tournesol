@@ -302,6 +302,7 @@ def compute_scaled_scores(
     df.drop(["s", "tau", "delta_s", "delta_tau"], axis=1, inplace=True)
 
     all_scalings = pd.concat([supertrusted_scaling, non_supertrusted_scaling])
+    print("all_scalings", all_scalings.dtypes)
     return df, all_scalings
 
 
