@@ -121,6 +121,7 @@ def _run_online_heuristics_for_criterion(
 ):
     poll = Poll.objects.get(pk=poll_pk)
     all_comparison_user = ml_input.get_comparisons(criteria=criteria, user_id=user_id)
+    print("co", all_comparison_user.dtypes)
     entity_id_a = Entity.objects.get(uid=uid_a).pk
     entity_id_b = Entity.objects.get(uid=uid_b).pk
     if all_comparison_user.empty:
@@ -184,6 +185,8 @@ def _run_online_heuristics_for_criterion(
     all_indiv_score_a = ml_input.get_indiv_score(
         entity_id=entity_id_a, criteria=criteria
     )
+    print("all_indiv_score_a", all_indiv_score_a.dtypes)
+
     all_indiv_score_b = ml_input.get_indiv_score(
         entity_id=entity_id_b, criteria=criteria
     )
@@ -211,15 +214,11 @@ def _run_online_heuristics_for_criterion(
     partial_scaled_scores_for_ab = df
 
     for mode in ScoreMode:
-        if mode == ScoreMode.DEFAULT:
-            print("mode", mode)
-            global_scores = get_global_scores(
-                partial_scaled_scores_for_ab, score_mode=mode
-            )
-            global_scores["criteria"] = criteria
-            save_entity_scores(
-                poll, global_scores, single_criteria=criteria, score_mode=mode
-            )
+        global_scores = get_global_scores(partial_scaled_scores_for_ab, score_mode=mode)
+        global_scores["criteria"] = criteria
+        save_entity_scores(
+            poll, global_scores, single_criteria=criteria, score_mode=mode
+        )
 
 
 def run_online_heuristics(
