@@ -25,12 +25,12 @@ def compute_individual_score(scores: pd.DataFrame):
             ),
         ]
     )
-    print("scores_sym",scores_sym.dtypes)
+    print("scores_sym", scores_sym.dtypes)
     # "Comparison tensor": matrix with all comparisons, values in [-R_MAX, R_MAX]
     r = scores_sym.pivot(index="entity_a", columns="entity_b", values="score")
 
     r_tilde = r / (1.0 + R_MAX)
-    r_tilde2 = r_tilde ** 2
+    r_tilde2 = r_tilde**2
 
     # r.loc[a:b] is negative when a is prefered to b.
     l = -1.0 * r_tilde / np.sqrt(1.0 - r_tilde2)  # noqa: E741

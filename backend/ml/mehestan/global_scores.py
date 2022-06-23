@@ -302,7 +302,6 @@ def compute_scaled_scores(
     df.drop(["s", "tau", "delta_s", "delta_tau"], axis=1, inplace=True)
 
     all_scalings = pd.concat([supertrusted_scaling, non_supertrusted_scaling])
-    print("all_scalings", all_scalings.dtypes)
     return df, all_scalings
 
 
@@ -369,11 +368,6 @@ def get_global_scores(scaled_individual_scores: pd.DataFrame, score_mode: ScoreM
         w = scores.voting_weight
         theta = scores.score
         delta = scores.uncertainty
-        pd.set_option("display.max_columns", None)
-        print(score_mode)
-        print(scores)
-        print(scores.columns)
-        print(scores.dtypes)
         rho = QrMed(2 * W, w, theta, delta)
         rho_uncertainty = QrUnc(2 * W, 1, w, theta, delta, qr_med=rho)
         rho_deviation = QrDev(2 * W, 1, w, theta, delta, qr_med=rho)
