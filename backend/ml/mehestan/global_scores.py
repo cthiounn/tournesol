@@ -372,6 +372,7 @@ def get_global_scores(scaled_individual_scores: pd.DataFrame, score_mode: ScoreM
         print(score_mode)
         print(scores)
         print(scores.columns)
+        print(scores.dtypes)
         rho = QrMed(2 * W, w, theta, delta)
         rho_uncertainty = QrUnc(2 * W, 1, w, theta, delta, qr_med=rho)
         rho_deviation = QrDev(2 * W, 1, w, theta, delta, qr_med=rho)
