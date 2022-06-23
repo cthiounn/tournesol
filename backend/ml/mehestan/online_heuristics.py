@@ -185,14 +185,18 @@ def _run_online_heuristics_for_criterion(
     all_indiv_score_a = ml_input.get_indiv_score(
         entity_id=entity_id_a, criteria=criteria
     )
+    pd.set_option("display.max_columns", None)
     print("all_indiv_score_a", all_indiv_score_a.dtypes)
+    print("all_indiv_score_a", all_indiv_score_a)
 
     all_indiv_score_b = ml_input.get_indiv_score(
         entity_id=entity_id_b, criteria=criteria
     )
     print("all_indiv_score_b", all_indiv_score_b.dtypes)
+    print("all_indiv_score_b", all_indiv_score_b)
     all_indiv_score = pd.concat([all_indiv_score_a, all_indiv_score_b])
     print("all_indiv_score", all_indiv_score.dtypes)
+    print("all_indiv_score", all_indiv_score)
 
     df = all_indiv_score.merge(
         ml_input.get_ratings_properties(), how="inner", on=["user_id", "entity_id"]
