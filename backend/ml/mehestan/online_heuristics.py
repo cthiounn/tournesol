@@ -125,7 +125,7 @@ def _run_online_heuristics_for_criterion(
     entity_id_a = Entity.objects.get(uid=uid_a).pk
     entity_id_b = Entity.objects.get(uid=uid_b).pk
     if all_comparison_user.empty:
-        logger.warn(
+        logger.warning(
             "_run_online_heuristics_for_criterion : no comparison  for criteria '%s'",
             criteria,
         )
@@ -140,7 +140,7 @@ def _run_online_heuristics_for_criterion(
             & (all_comparison_user.entity_b == entity_id_a)
         ].empty
     ):
-        logger.warn(
+        logger.warning(
             "_run_online_heuristics_for_criterion :  \
             no comparison found for '%s' with '%s' and criteria '%s'",
             entity_id_a,
@@ -188,7 +188,7 @@ def _run_online_heuristics_for_criterion(
         entity_id=entity_id_a, criteria=criteria
     )
     if all_indiv_score_a.empty:
-        logger.warn(
+        logger.warning(
             "_run_online_heuristics_for_criterion :  \
             no individual score found for '%s' and criteria '%s'",
             entity_id_a,
@@ -199,7 +199,7 @@ def _run_online_heuristics_for_criterion(
         entity_id=entity_id_b, criteria=criteria
     )
     if all_indiv_score_b.empty:
-        logger.warn(
+        logger.warning(
             "_run_online_heuristics_for_criterion :  \
             no individual score found for '%s' and criteria '%s'",
             entity_id_b,
