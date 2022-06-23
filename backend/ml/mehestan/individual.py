@@ -25,7 +25,7 @@ def compute_individual_score(scores: pd.DataFrame):
             ),
         ]
     )
-
+    print("scores_sym",scores_sym.dtypes)
     # "Comparison tensor": matrix with all comparisons, values in [-R_MAX, R_MAX]
     r = scores_sym.pivot(index="entity_a", columns="entity_b", values="score")
 
