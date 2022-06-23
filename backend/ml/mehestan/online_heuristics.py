@@ -13,7 +13,7 @@ from ml.inputs import MlInput, MlInputFromDb
 from ml.outputs import (
     save_entity_scores,
     save_tournesol_score_as_sum_of_criteria,
-    update_contributor_score,
+    insert_or_update_contributor_score,
 )
 from tournesol.models import Entity, Poll
 from tournesol.models.entity_score import ScoreMode
@@ -165,7 +165,8 @@ def _run_online_heuristics_for_criterion(
     ) = get_new_scores_from_online_update(
         all_comparison_user, entity_id_a, entity_id_b, previous_individual_raw_scores
     )
-    update_contributor_score(
+
+    insert_or_update_contributor_score(
         poll=poll,
         entity_id=entity_id_a,
         user_id=user_id,
@@ -173,7 +174,7 @@ def _run_online_heuristics_for_criterion(
         criteria=criteria,
         uncertainty=delta_star_a,
     )
-    update_contributor_score(
+    insert_or_update_contributor_score(
         poll=poll,
         entity_id=entity_id_b,
         user_id=user_id,
@@ -181,22 +182,31 @@ def _run_online_heuristics_for_criterion(
         criteria=criteria,
         uncertainty=delta_star_b,
     )
+
     all_user_scalings = ml_input.get_all_scaling_factors(criteria=criteria)
     all_indiv_score_a = ml_input.get_indiv_score(
         entity_id=entity_id_a, criteria=criteria
     )
-    pd.set_option("display.max_columns", None)
-    print("all_indiv_score_a", all_indiv_score_a.dtypes)
-    print("all_indiv_score_a", all_indiv_score_a)
-
+    if all_indiv_score_a.empty:
+        logger.warn(
+            "_run_online_heuristics_for_criterion :  \
+            no individual score found for '%s' and criteria '%s'",
+            entity_id_a,
+            criteria,
+        )
+        return
     all_indiv_score_b = ml_input.get_indiv_score(
         entity_id=entity_id_b, criteria=criteria
     )
-    print("all_indiv_score_b", all_indiv_score_b.dtypes)
-    print("all_indiv_score_b", all_indiv_score_b)
+    if all_indiv_score_b.empty:
+        logger.warn(
+            "_run_online_heuristics_for_criterion :  \
+            no individual score found for '%s' and criteria '%s'",
+            entity_id_b,
+            criteria,
+        )
+        return
     all_indiv_score = pd.concat([all_indiv_score_a, all_indiv_score_b])
-    print("all_indiv_score", all_indiv_score.dtypes)
-    print("all_indiv_score", all_indiv_score)
 
     df = all_indiv_score.merge(
         ml_input.get_ratings_properties(), how="inner", on=["user_id", "entity_id"]
