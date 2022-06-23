@@ -121,7 +121,6 @@ def _run_online_heuristics_for_criterion(
 ):
     poll = Poll.objects.get(pk=poll_pk)
     all_comparison_user = ml_input.get_comparisons(criteria=criteria, user_id=user_id)
-    print("co", all_comparison_user.dtypes)
     entity_id_a = Entity.objects.get(uid=uid_a).pk
     entity_id_b = Entity.objects.get(uid=uid_b).pk
     if all_comparison_user.empty:
