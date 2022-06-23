@@ -211,11 +211,12 @@ def _run_online_heuristics_for_criterion(
     partial_scaled_scores_for_ab = df
 
     for mode in ScoreMode:
-        global_scores = get_global_scores(partial_scaled_scores_for_ab, score_mode=mode)
-        global_scores["criteria"] = criteria
-        save_entity_scores(
-            poll, global_scores, single_criteria=criteria, score_mode=mode
-        )
+        if mode == ScoreMode.DEFAULT:
+            global_scores = get_global_scores(partial_scaled_scores_for_ab, score_mode=mode)
+            global_scores["criteria"] = criteria
+            save_entity_scores(
+                poll, global_scores, single_criteria=criteria, score_mode=mode
+            )
 
 
 def run_online_heuristics(
