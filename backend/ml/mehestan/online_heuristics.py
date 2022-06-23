@@ -191,15 +191,18 @@ def _run_online_heuristics_for_criterion(
         entity_id=entity_id_b, criteria=criteria
     )
     all_indiv_score = pd.concat([all_indiv_score_a, all_indiv_score_b])
+    print("all_indiv_score", all_indiv_score.dtypes)
 
     df = all_indiv_score.merge(
         ml_input.get_ratings_properties(), how="inner", on=["user_id", "entity_id"]
     )
+    print("df", df.dtypes)
     df["is_public"].fillna(False, inplace=True)
     df["is_trusted"].fillna(False, inplace=True)
     df["is_supertrusted"].fillna(False, inplace=True)
 
     df = df.merge(all_user_scalings, how="left", on="user_id")
+    print("df2", df.dtypes)
     df["s"].fillna(1, inplace=True)
     df["tau"].fillna(0, inplace=True)
     df["delta_s"].fillna(0, inplace=True)
@@ -213,6 +216,7 @@ def _run_online_heuristics_for_criterion(
     df.drop(["s", "tau", "delta_s", "delta_tau"], axis=1, inplace=True)
     partial_scaled_scores_for_ab = df
 
+    print("partial_scaled_scores_for_ab", partial_scaled_scores_for_ab.dtypes)
     for mode in ScoreMode:
         global_scores = get_global_scores(partial_scaled_scores_for_ab, score_mode=mode)
         global_scores["criteria"] = criteria
