@@ -177,6 +177,7 @@ def _run_online_heuristics_for_criterion(
         criteria=criteria,
         uncertainty=delta_star_a,
     )
+    print(uid_a)
     insert_or_update_contributor_score(
         poll=poll,
         entity_id=entity_id_b,
@@ -185,6 +186,7 @@ def _run_online_heuristics_for_criterion(
         criteria=criteria,
         uncertainty=delta_star_b,
     )
+    print(uid_b)
 
     all_user_scalings = ml_input.get_all_scaling_factors(criteria=criteria)
     all_indiv_score_a = ml_input.get_indiv_score(
