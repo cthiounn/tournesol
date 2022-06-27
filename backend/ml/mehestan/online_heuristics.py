@@ -88,10 +88,10 @@ def get_new_scores_from_online_update(
     dot_product = U_ab.dot(previous_individual_raw_scores)
     theta_star_a = (
         L_tilde_a - dot_product[dot_product.index == id_entity_a].values
-    ).squeeze()[()]
+    ).squeeze()[()].item()
     theta_star_b = (
         L_tilde_b - dot_product[dot_product.index == id_entity_b].values
-    ).squeeze()[()]
+    ).squeeze()[()].item()
 
     previous_individual_raw_scores.loc[id_entity_a] = theta_star_a
     previous_individual_raw_scores.loc[id_entity_b] = theta_star_b
