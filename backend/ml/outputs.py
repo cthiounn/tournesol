@@ -78,6 +78,7 @@ def save_contributor_scores(
     trusted_filter: Optional[bool] = None,
     single_criteria: Optional[str] = None,
     single_user_id: Optional[int] = None,
+    delete_all: Optional[bool] = True,
 ):
     if isinstance(contributor_scores, pd.DataFrame):
         scores_list = list(
@@ -117,7 +118,7 @@ def save_contributor_scores(
             )
             for contributor_id, entity_id in ratings_to_create
         ),
-        ignore_conflicts=False,
+        ignore_conflicts=True,
     )
     # Refresh the `ratings_id` with the newly created `ContributorRating`s.
     rating_ids.update(
@@ -150,7 +151,8 @@ def save_contributor_scores(
     print(scores_to_delete)
 
     with transaction.atomic():
-        scores_to_delete.delete()
+        if delete_all:
+            scores_to_delete.delete()
         ContributorRatingCriteriaScore.objects.bulk_create(
             ContributorRatingCriteriaScore(
                 contributor_rating_id=rating_ids[(contributor_id, video_id)],
@@ -191,7 +193,7 @@ def insert_or_update_contributor_score(
         )
         print(data)
         save_contributor_scores(
-            poll, scores, single_criteria=criteria, single_user_id=user_id
+            poll, scores, single_criteria=criteria, single_user_id=user_id, delete_all=False
         )
         print("save 2", entity_id, user_id, criteria, score, uncertainty)
 
