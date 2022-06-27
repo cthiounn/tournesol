@@ -1080,6 +1080,7 @@ class ComparisonWithMehestanTest(TransactionTestCase):
         )
 
         self.assertEqual(resp.status_code, 201, resp.content)
+        print(self.user2)
         print(
             ContributorRatingCriteriaScore.objects.filter(
                 contributor_rating__user=self.user2
