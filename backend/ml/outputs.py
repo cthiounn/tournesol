@@ -90,11 +90,8 @@ def save_contributor_scores(
         scores_list = list(contributor_scores)
 
     ratings = ContributorRating.objects.filter(poll=poll)
-    print("ratings")
-    print(ratings)
     if single_user_id is not None:
         ratings = ratings.filter(user_id=single_user_id)
-    print(ratings)
 
     rating_ids = {
         (contributor_id, video_id): rating_id
@@ -102,13 +99,11 @@ def save_contributor_scores(
             "id", "user_id", "entity_id"
         )
     }
-    print(rating_ids)
     ratings_to_create = set(
         (contributor_id, video_id)
         for contributor_id, video_id, _, _, _ in scores_list
         if (contributor_id, video_id) not in rating_ids
     )
-    print(ratings_to_create)
     ContributorRating.objects.bulk_create(
         (
             ContributorRating(
@@ -133,7 +128,6 @@ def save_contributor_scores(
     scores_to_delete = ContributorRatingCriteriaScore.objects.filter(
         contributor_rating__poll=poll
     )
-    print(scores_to_delete)
     if trusted_filter is not None:
         trusted_query = Q(contributor_rating__user__in=User.trusted_users())
         scores_to_delete = scores_to_delete.filter(
@@ -147,8 +141,6 @@ def save_contributor_scores(
         scores_to_delete = scores_to_delete.filter(
             contributor_rating__user_id=single_user_id
         )
-    print("final")
-    print(scores_to_delete)
 
     with transaction.atomic():
         if delete_all:
@@ -178,24 +170,23 @@ def insert_or_update_contributor_score(
         contributor_rating__user_id=user_id,
         contributor_rating__entity_id=entity_id,
     )
-    print(score)
-    print(type(score))
     contributor_rating_criteria_score = query_score_to_update.first()
     if contributor_rating_criteria_score:
         contributor_rating_criteria_score.score = score
         contributor_rating_criteria_score.uncertainty = uncertainty
         contributor_rating_criteria_score.save()
-        print("save 1", entity_id, user_id, criteria, score, uncertainty)
     else:
         data = [(user_id, entity_id, criteria, score, uncertainty)]
         scores = pd.DataFrame(
             data, columns=["user_id", "entity_id", "criteria", "score", "uncertainty"]
         )
-        print(data)
         save_contributor_scores(
-            poll, scores, single_criteria=criteria, single_user_id=user_id, delete_all=False
+            poll,
+            scores,
+            single_criteria=criteria,
+            single_user_id=user_id,
+            delete_all=False,
         )
-        print("save 2", entity_id, user_id, criteria, score, uncertainty)
 
 
 def save_contributor_scalings(poll: Poll, criteria: str, scalings: pd.DataFrame):

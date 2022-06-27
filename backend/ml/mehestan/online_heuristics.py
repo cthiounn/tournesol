@@ -87,11 +87,15 @@ def get_new_scores_from_online_update(
 
     dot_product = U_ab.dot(previous_individual_raw_scores)
     theta_star_a = (
-        L_tilde_a - dot_product[dot_product.index == id_entity_a].values
-    ).squeeze()[()].item()
+        (L_tilde_a - dot_product[dot_product.index == id_entity_a].values)
+        .squeeze()[()]
+        .item()
+    )
     theta_star_b = (
-        L_tilde_b - dot_product[dot_product.index == id_entity_b].values
-    ).squeeze()[()].item()
+        (L_tilde_b - dot_product[dot_product.index == id_entity_b].values)
+        .squeeze()[()]
+        .item()
+    )
 
     previous_individual_raw_scores.loc[id_entity_a] = theta_star_a
     previous_individual_raw_scores.loc[id_entity_b] = theta_star_b
@@ -168,12 +172,6 @@ def _run_online_heuristics_for_criterion(
     ) = get_new_scores_from_online_update(
         all_comparison_user, entity_id_a, entity_id_b, previous_individual_raw_scores
     )
-    print(
-        theta_star_a,
-        delta_star_a,
-        theta_star_b,
-        delta_star_b,
-    )
 
     insert_or_update_contributor_score(
         poll=poll,
@@ -183,7 +181,6 @@ def _run_online_heuristics_for_criterion(
         criteria=criteria,
         uncertainty=delta_star_a,
     )
-    print(uid_a)
     insert_or_update_contributor_score(
         poll=poll,
         entity_id=entity_id_b,
@@ -192,7 +189,6 @@ def _run_online_heuristics_for_criterion(
         criteria=criteria,
         uncertainty=delta_star_b,
     )
-    print(uid_b)
 
     all_user_scalings = ml_input.get_all_scaling_factors(criteria=criteria)
     all_indiv_score_a = ml_input.get_indiv_score(

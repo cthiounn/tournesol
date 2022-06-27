@@ -1080,12 +1080,6 @@ class ComparisonWithMehestanTest(TransactionTestCase):
         )
 
         self.assertEqual(resp.status_code, 201, resp.content)
-        print(self.user2)
-        print(
-            ContributorRatingCriteriaScore.objects.filter(
-                contributor_rating__user=self.user2
-            )
-        )
 
         # Individual scores related to the new comparison have been computed
         self.assertEqual(
@@ -1105,6 +1099,7 @@ class ComparisonWithMehestanTest(TransactionTestCase):
         # new individual scores 4+2=6
         self.assertEqual(ContributorRatingCriteriaScore.objects.count(), 6)
         # new Global scores 4+1=5
+        print(EntityCriteriaScore.objects.filter(score_mode="default"))
         self.assertEqual(
             EntityCriteriaScore.objects.filter(score_mode="default").count(), 5
         )
