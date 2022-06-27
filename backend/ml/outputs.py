@@ -132,6 +132,7 @@ def save_contributor_scores(
     scores_to_delete = ContributorRatingCriteriaScore.objects.filter(
         contributor_rating__poll=poll
     )
+    print(scores_to_delete)
     if trusted_filter is not None:
         trusted_query = Q(contributor_rating__user__in=User.trusted_users())
         scores_to_delete = scores_to_delete.filter(
@@ -145,6 +146,8 @@ def save_contributor_scores(
         scores_to_delete = scores_to_delete.filter(
             contributor_rating__user_id=single_user_id
         )
+    print("final")
+    print(scores_to_delete)
 
     with transaction.atomic():
         scores_to_delete.delete()
