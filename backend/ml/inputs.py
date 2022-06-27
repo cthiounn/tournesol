@@ -10,6 +10,7 @@ from tournesol.models import ComparisonCriteriaScore, Entity
 from tournesol.models.ratings import ContributorRating, ContributorRatingCriteriaScore
 from tournesol.models.scaling import ContributorScaling
 
+
 class MlInput(ABC):
     @abstractmethod
     def get_comparisons(
@@ -115,7 +116,7 @@ class MlInputFromPublicDataset(MlInput):
         # if entity_id:
         #     df = df[df.entity_id == entity_id]
         # return df
-        return 
+        return
 
 
 class MlInputFromDb(MlInput):
