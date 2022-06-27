@@ -103,6 +103,7 @@ def save_contributor_scores(
         for contributor_id, video_id, _, _, _ in scores_list
         if (contributor_id, video_id) not in rating_ids
     )
+    print(ratings_to_create)
     ContributorRating.objects.bulk_create(
         (
             ContributorRating(
@@ -112,7 +113,7 @@ def save_contributor_scores(
             )
             for contributor_id, entity_id in ratings_to_create
         ),
-        ignore_conflicts=True,
+        ignore_conflicts=False,
     )
     # Refresh the `ratings_id` with the newly created `ContributorRating`s.
     rating_ids.update(
