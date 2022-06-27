@@ -179,6 +179,7 @@ def insert_or_update_contributor_score(
         scores = pd.DataFrame(
             data, columns=["user_id", "entity_id", "criteria", "score", "uncertainty"]
         )
+        print(data)
         save_contributor_scores(
             poll, scores, single_criteria=criteria, single_user_id=user_id
         )
