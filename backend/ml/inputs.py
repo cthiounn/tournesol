@@ -4,13 +4,14 @@ from typing import Optional
 import pandas as pd
 from django.db.models import Case, F, QuerySet, When
 from django.db.models.expressions import RawSQL
-from .mehestan.global_scores import compute_scaled_scores
-from .mehestan.run import get_individual_scores
 
 from core.models import User
 from tournesol.models import ComparisonCriteriaScore, Entity
 from tournesol.models.ratings import ContributorRating, ContributorRatingCriteriaScore
 from tournesol.models.scaling import ContributorScaling
+
+from .mehestan.global_scores import compute_scaled_scores
+from .mehestan.run import get_individual_scores
 
 
 class MlInput(ABC):
