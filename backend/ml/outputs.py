@@ -89,8 +89,11 @@ def save_contributor_scores(
         scores_list = list(contributor_scores)
 
     ratings = ContributorRating.objects.filter(poll=poll)
+    print("ratings")
+    print(ratings)
     if single_user_id is not None:
         ratings = ratings.filter(user_id=single_user_id)
+    print(ratings)
 
     rating_ids = {
         (contributor_id, video_id): rating_id
@@ -98,6 +101,7 @@ def save_contributor_scores(
             "id", "user_id", "entity_id"
         )
     }
+    print(rating_ids)
     ratings_to_create = set(
         (contributor_id, video_id)
         for contributor_id, video_id, _, _, _ in scores_list
