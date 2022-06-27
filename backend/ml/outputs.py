@@ -173,6 +173,7 @@ def insert_or_update_contributor_score(
         contributor_rating_criteria_score.score = score
         contributor_rating_criteria_score.uncertainty = uncertainty
         contributor_rating_criteria_score.save()
+        print("save 1", entity_id, user_id, criteria, score, uncertainty)
     else:
         data = [(user_id, entity_id, criteria, score, uncertainty)]
         scores = pd.DataFrame(
@@ -181,6 +182,7 @@ def insert_or_update_contributor_score(
         save_contributor_scores(
             poll, scores, single_criteria=criteria, single_user_id=user_id
         )
+        print("save 2", entity_id, user_id, criteria, score, uncertainty)
 
 
 def save_contributor_scalings(poll: Poll, criteria: str, scalings: pd.DataFrame):
