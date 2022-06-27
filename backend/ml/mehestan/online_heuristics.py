@@ -168,6 +168,12 @@ def _run_online_heuristics_for_criterion(
     ) = get_new_scores_from_online_update(
         all_comparison_user, entity_id_a, entity_id_b, previous_individual_raw_scores
     )
+    print(
+        theta_star_a,
+        delta_star_a,
+        theta_star_b,
+        delta_star_b,
+    )
 
     insert_or_update_contributor_score(
         poll=poll,
