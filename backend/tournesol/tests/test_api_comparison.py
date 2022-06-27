@@ -20,7 +20,10 @@ from tournesol.models import (
     RateLater,
 )
 from tournesol.models.poll import ALGORITHM_MEHESTAN
-from tournesol.tests.factories.comparison import ComparisonCriteriaScoreFactory, ComparisonFactory
+from tournesol.tests.factories.comparison import (
+    ComparisonCriteriaScoreFactory,
+    ComparisonFactory,
+)
 from tournesol.tests.factories.entity import VideoFactory
 from tournesol.tests.factories.poll import CriteriaRankFactory, PollFactory
 
@@ -1080,6 +1083,11 @@ class ComparisonWithMehestanTest(TransactionTestCase):
         )
 
         self.assertEqual(resp.status_code, 201, resp.content)
+        print(
+            ContributorRatingCriteriaScore.objects.filter(
+                contributor_rating__user=self.user2
+            )
+        )
 
         # Individual scores related to the new comparison have been computed
         self.assertEqual(
