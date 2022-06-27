@@ -168,6 +168,7 @@ def insert_or_update_contributor_score(
         contributor_rating__user_id=user_id,
         contributor_rating__entity_id=entity_id,
     )
+    print(score)
     contributor_rating_criteria_score = query_score_to_update.first()
     if contributor_rating_criteria_score:
         contributor_rating_criteria_score.score = score
