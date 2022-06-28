@@ -30,7 +30,7 @@ def save_entity_scores(
         set_entity_id = set(entity_scores.entity_id)
     else:
         scores_iterator = entity_scores
-        set_entity_id = {entity_id for entity_id, _, _, _, _ in scores_iterator}
+        set_entity_id = {entity_id for entity_id, _, _, _ in scores_iterator}
     # Support scores iterator without deviation
     scores_iterator = (t if len(t) == 5 else t + (None,) for t in scores_iterator)
     print(set_entity_id)
