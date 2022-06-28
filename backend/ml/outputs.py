@@ -22,7 +22,6 @@ def save_entity_scores(
     entity_scores: Union[pd.DataFrame, Iterable[tuple]],
     single_criteria=None,
     score_mode=ScoreMode.DEFAULT,
-    entity_id_to_delete: Optional[str] = None,
 ):
     if isinstance(entity_scores, pd.DataFrame):
         scores_iterator = entity_scores[
@@ -30,7 +29,7 @@ def save_entity_scores(
         ].itertuples(index=False)
     else:
         scores_iterator = entity_scores
-
+    set_entity_id=set(entity_scores.entity_id)
     # Support scores iterator without deviation
     scores_iterator = (t if len(t) == 5 else t + (None,) for t in scores_iterator)
 
@@ -40,8 +39,8 @@ def save_entity_scores(
         )
         if single_criteria:
             scores_to_delete = scores_to_delete.filter(criteria=single_criteria)
-        if entity_id_to_delete:
-            scores_to_delete = scores_to_delete.filter(entity_id=entity_id_to_delete)
+        if set_entity_id:
+            scores_to_delete = scores_to_delete.filter(entity_id__in=set_entity_id)
         scores_to_delete.delete()
 
         EntityCriteriaScore.objects.bulk_create(
