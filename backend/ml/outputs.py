@@ -29,7 +29,7 @@ def save_entity_scores(
         ].itertuples(index=False)
     else:
         scores_iterator = entity_scores
-    set_entity_id = set(entity_scores.entity_id)
+    set_entity_id = set(list(entity_scores.entity_id))
     # Support scores iterator without deviation
     scores_iterator = (t if len(t) == 5 else t + (None,) for t in scores_iterator)
 
