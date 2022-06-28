@@ -239,12 +239,12 @@ def _run_online_heuristics_for_criterion(
     for mode in ScoreMode:
         global_scores = get_global_scores(partial_scaled_scores_for_ab, score_mode=mode)
         global_scores["criteria"] = criteria
+        print(mode, global_scores)
         save_entity_scores(
             poll,
             global_scores,
             single_criteria=criteria,
             score_mode=mode,
-            delete_all=False,
         )
 
 
