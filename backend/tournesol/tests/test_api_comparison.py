@@ -1099,9 +1099,6 @@ class ComparisonWithMehestanTest(TransactionTestCase):
         # new individual scores 4+2=6
         self.assertEqual(ContributorRatingCriteriaScore.objects.count(), 6)
         # new Global scores 4+1=5
-        print(self.entities, self.entities[0].uid, self.entities[2].uid)
-        print(ContributorRatingCriteriaScore.objects)
-        print(EntityCriteriaScore.objects.filter(score_mode="default"))
         self.assertEqual(
             EntityCriteriaScore.objects.filter(score_mode="default").count(), 5
         )
