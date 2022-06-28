@@ -1104,6 +1104,124 @@ class ComparisonWithMehestanTest(TransactionTestCase):
         )
 
 
+class ComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
+    def setUp(self):
+        self.poll = PollFactory(algorithm=ALGORITHM_MEHESTAN)
+        CriteriaRankFactory(poll=self.poll, criteria__name="criteria1")
+
+        self.entities = VideoFactory.create_batch(2)
+        (
+            self.user1,
+            self.user2,
+            self.user3,
+            self.user4,
+            self.user5,
+        ) = UserFactory.create_batch(5)
+
+        comparison_user1 = ComparisonFactory(
+            poll=self.poll,
+            user=self.user1,
+            entity_1=self.entities[0],
+            entity_2=self.entities[1],
+        )
+        comparison_user2 = ComparisonFactory(
+            poll=self.poll,
+            user=self.user2,
+            entity_1=self.entities[0],
+            entity_2=self.entities[1],
+        )
+        comparison_user3 = ComparisonFactory(
+            poll=self.poll,
+            user=self.user3,
+            entity_1=self.entities[0],
+            entity_2=self.entities[1],
+        )
+        comparison_user4 = ComparisonFactory(
+            poll=self.poll,
+            user=self.user4,
+            entity_1=self.entities[0],
+            entity_2=self.entities[1],
+        )
+        comparisons = list()
+        comparisons.append((comparison_user1, 10))
+        comparisons.append((comparison_user2, 10))
+        comparisons.append((comparison_user3, -10))
+        comparisons.append((comparison_user4, -10))
+
+        for (comparison, score) in comparisons:
+            ComparisonCriteriaScoreFactory(
+                comparison=comparison,
+                criteria="criteria1",
+                score=score,
+            )
+
+        self.client = APIClient()
+
+    def test_update_individual_scores_after_new_comparison_with_online_heuristic_update(
+        self,
+    ):
+        call_command("ml_train")
+        print(ContributorRatingCriteriaScore.objects.all())
+        print(EntityCriteriaScore.objects.all())
+        contrib_before_insert = ContributorRatingCriteriaScore.objects.all()
+        print(contrib_before_insert.values())
+        print(contrib_before_insert.values_list())
+        self.assertEqual(ContributorRatingCriteriaScore.objects.count(), 8)
+        self.assertEqual(
+            EntityCriteriaScore.objects.filter(score_mode="default").count(), 2
+        )
+
+        # user5 has no contributor scores before the comparison is submitted
+        self.assertEqual(
+            ContributorRatingCriteriaScore.objects.filter(
+                contributor_rating__user=self.user5
+            ).count(),
+            0,
+        )
+
+        self.client.force_authenticate(self.user5)
+        resp = self.client.post(
+            f"/users/me/comparisons/{self.poll.name}",
+            data={
+                "entity_a": {"uid": self.entities[0].uid},
+                "entity_b": {"uid": self.entities[1].uid},
+                "criteria_scores": [{"criteria": "criteria1", "score": 2}],
+            },
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        # Individual scores related to the new comparison have been computed
+        self.assertEqual(
+            ContributorRatingCriteriaScore.objects.filter(
+                contributor_rating__user=self.user5
+            ).count(),
+            2,
+        )
+        # The score related to the less prefered entity is negative
+        user_score = ContributorRatingCriteriaScore.objects.get(
+            contributor_rating__user=self.user5,
+            contributor_rating__entity=self.entities[0],
+            criteria="criteria1",
+        )
+        self.assertLess(user_score.score, 0)
+
+        contrib_after_insert = ContributorRatingCriteriaScore.objects.all()
+        print("BLA3", contrib_after_insert.difference(contrib_before_insert))
+
+        print(contrib_after_insert.values())
+        print(contrib_after_insert.values_list())
+        # new individual scores 8+2=10
+        self.assertEqual(ContributorRatingCriteriaScore.objects.count(), 10)
+        print(ContributorRatingCriteriaScore.objects.all())
+        # no new global scores = 2
+        print(EntityCriteriaScore.objects.all())
+        self.assertEqual(
+            EntityCriteriaScore.objects.filter(score_mode="default").count(), 2
+        )
+
+
 class ComparisonApiWithInactivePoll(TestCase):
     def setUp(self):
         self.poll = PollFactory(active=False)
