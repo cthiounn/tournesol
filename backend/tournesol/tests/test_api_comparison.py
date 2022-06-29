@@ -1161,11 +1161,9 @@ class ComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
         self,
     ):
         call_command("ml_train")
-        print(ContributorRatingCriteriaScore.objects.all())
-        print(EntityCriteriaScore.objects.all())
-        contrib_before_insert = ContributorRatingCriteriaScore.objects.all()
-        print(contrib_before_insert.values())
-        print(contrib_before_insert.values_list())
+        contrib_before_insert = set(
+            ContributorRatingCriteriaScore.objects.all().values_list()
+        )
         self.assertEqual(ContributorRatingCriteriaScore.objects.count(), 8)
         self.assertEqual(
             EntityCriteriaScore.objects.filter(score_mode="default").count(), 2
@@ -1207,16 +1205,17 @@ class ComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
         )
         self.assertLess(user_score.score, 0)
 
-        contrib_after_insert = ContributorRatingCriteriaScore.objects.all()
-        print("BLA3", contrib_after_insert.difference(contrib_before_insert))
+        contrib_after_insert = set(
+            ContributorRatingCriteriaScore.objects.all().values_list()
+        )
 
-        print(contrib_after_insert.values())
-        print(contrib_after_insert.values_list())
+        diff_insert = contrib_after_insert.difference(contrib_before_insert)
+        # have 2 new contributorRatingCriteria and have the same old contributorRatingCriteria
+        self.assertEqual(len(diff_insert), 2)
+        self.assertEqual(len(contrib_before_insert.difference(contrib_after_insert)), 0)
         # new individual scores 8+2=10
         self.assertEqual(ContributorRatingCriteriaScore.objects.count(), 10)
-        print(ContributorRatingCriteriaScore.objects.all())
         # no new global scores = 2
-        print(EntityCriteriaScore.objects.all())
         self.assertEqual(
             EntityCriteriaScore.objects.filter(score_mode="default").count(), 2
         )
