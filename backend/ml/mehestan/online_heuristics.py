@@ -131,12 +131,97 @@ def _run_online_heuristics_for_criterion(
     all_comparison_user = ml_input.get_comparisons(criteria=criteria, user_id=user_id)
     entity_id_a = Entity.objects.get(uid=uid_a).pk
     entity_id_b = Entity.objects.get(uid=uid_b).pk
+    if not check_requirements_are_good_for_online_heuristics(
+        criteria, all_comparison_user, entity_id_a, entity_id_b
+    ):
+        return
+    compute_and_update_individual_scores_online_heuristics(
+        criteria, ml_input, user_id, poll, all_comparison_user, entity_id_a, entity_id_b
+    )
+
+    partial_scaled_scores_for_ab = apply_scaling_on_individual_scores_online_heuristics(
+        criteria, ml_input, entity_id_a, entity_id_b
+    )
+
+    calculate_global_scores_in_all_score_mode(
+        criteria, poll, partial_scaled_scores_for_ab
+    )
+
+
+def calculate_global_scores_in_all_score_mode(
+    criteria, poll, partial_scaled_scores_for_ab
+):
+    for mode in ScoreMode:
+        global_scores = get_global_scores(partial_scaled_scores_for_ab, score_mode=mode)
+        global_scores["criteria"] = criteria
+        save_entity_scores(
+            poll,
+            global_scores,
+            single_criteria=criteria,
+            score_mode=mode,
+            delete_all=False,
+        )
+
+
+def apply_scaling_on_individual_scores_online_heuristics(
+    criteria, ml_input, entity_id_a, entity_id_b
+):
+    all_user_scalings = ml_input.get_all_scaling_factors(criteria=criteria)
+    all_indiv_score_a = ml_input.get_indiv_score(
+        entity_id=entity_id_a, criteria=criteria
+    )
+    if all_indiv_score_a.empty:
+        logger.warning(
+            "_run_online_heuristics_for_criterion :  \
+            no individual score found for '%s' and criteria '%s'",
+            entity_id_a,
+            criteria,
+        )
+        stop = True
+    all_indiv_score_b = ml_input.get_indiv_score(
+        entity_id=entity_id_b, criteria=criteria
+    )
+    if all_indiv_score_b.empty:
+        logger.warning(
+            "_run_online_heuristics_for_criterion :  \
+            no individual score found for '%s' and criteria '%s'",
+            entity_id_b,
+            criteria,
+        )
+        stop = True
+    all_indiv_score = pd.concat([all_indiv_score_a, all_indiv_score_b])
+
+    df = all_indiv_score.merge(
+        ml_input.get_ratings_properties(), how="inner", on=["user_id", "entity_id"]
+    )
+    df["is_public"].fillna(False, inplace=True)
+    df["is_trusted"].fillna(False, inplace=True)
+    df["is_supertrusted"].fillna(False, inplace=True)
+
+    df = df.merge(all_user_scalings, how="left", on="user_id")
+    df["s"].fillna(1, inplace=True)
+    df["tau"].fillna(0, inplace=True)
+    df["delta_s"].fillna(0, inplace=True)
+    df["delta_tau"].fillna(0, inplace=True)
+    df["uncertainty"] = (
+        df["s"] * df["uncertainty"]
+        + df["delta_s"] * df["score"].abs()
+        + df["delta_tau"]
+    )
+    df["score"] = df["score"] * df["s"] + df["tau"]
+    df.drop(["s", "tau", "delta_s", "delta_tau"], axis=1, inplace=True)
+    return df
+
+
+def check_requirements_are_good_for_online_heuristics(
+    criteria, all_comparison_user, entity_id_a, entity_id_b
+):
     if all_comparison_user.empty:
         logger.warning(
             "_run_online_heuristics_for_criterion : no comparison  for criteria '%s'",
             criteria,
         )
-        return
+        return False
     if (
         all_comparison_user[
             (all_comparison_user.entity_a == entity_id_a)
@@ -154,7 +239,13 @@ def _run_online_heuristics_for_criterion(
             entity_id_b,
             criteria,
         )
-        return
+        return False
+    return True
+
+
+def compute_and_update_individual_scores_online_heuristics(
+    criteria, ml_input, user_id, poll, all_comparison_user, entity_id_a, entity_id_b
+):
     previous_individual_raw_scores = ml_input.get_indiv_score(
         user_id=user_id, criteria=criteria
     )
@@ -189,63 +280,6 @@ def _run_online_heuristics_for_criterion(
         criteria=criteria,
         uncertainty=delta_star_b,
     )
-
-    all_user_scalings = ml_input.get_all_scaling_factors(criteria=criteria)
-    all_indiv_score_a = ml_input.get_indiv_score(
-        entity_id=entity_id_a, criteria=criteria
-    )
-    if all_indiv_score_a.empty:
-        logger.warning(
-            "_run_online_heuristics_for_criterion :  \
-            no individual score found for '%s' and criteria '%s'",
-            entity_id_a,
-            criteria,
-        )
-        return
-    all_indiv_score_b = ml_input.get_indiv_score(
-        entity_id=entity_id_b, criteria=criteria
-    )
-    if all_indiv_score_b.empty:
-        logger.warning(
-            "_run_online_heuristics_for_criterion :  \
-            no individual score found for '%s' and criteria '%s'",
-            entity_id_b,
-            criteria,
-        )
-        return
-    all_indiv_score = pd.concat([all_indiv_score_a, all_indiv_score_b])
-
-    df = all_indiv_score.merge(
-        ml_input.get_ratings_properties(), how="inner", on=["user_id", "entity_id"]
-    )
-    df["is_public"].fillna(False, inplace=True)
-    df["is_trusted"].fillna(False, inplace=True)
-    df["is_supertrusted"].fillna(False, inplace=True)
-
-    df = df.merge(all_user_scalings, how="left", on="user_id")
-    df["s"].fillna(1, inplace=True)
-    df["tau"].fillna(0, inplace=True)
-    df["delta_s"].fillna(0, inplace=True)
-    df["delta_tau"].fillna(0, inplace=True)
-    df["uncertainty"] = (
-        df["s"] * df["uncertainty"]
-        + df["delta_s"] * df["score"].abs()
-        + df["delta_tau"]
-    )
-    df["score"] = df["score"] * df["s"] + df["tau"]
-    df.drop(["s", "tau", "delta_s", "delta_tau"], axis=1, inplace=True)
-    partial_scaled_scores_for_ab = df
-
-    for mode in ScoreMode:
-        global_scores = get_global_scores(partial_scaled_scores_for_ab, score_mode=mode)
-        global_scores["criteria"] = criteria
-        save_entity_scores(
-            poll,
-            global_scores,
-            single_criteria=criteria,
-            score_mode=mode,
-            delete_all=False,
-        )
 
 
 def run_online_heuristics(
