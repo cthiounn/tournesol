@@ -143,7 +143,7 @@ def _run_online_heuristics_for_criterion(
         criteria, ml_input, entity_id_a, entity_id_b
     )
 
-    if not partial_scaled_scores_for_ab.empty():
+    if not partial_scaled_scores_for_ab.empty:
         calculate_global_scores_in_all_score_mode(
             criteria, poll, partial_scaled_scores_for_ab
         )
