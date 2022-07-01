@@ -143,9 +143,10 @@ def _run_online_heuristics_for_criterion(
         criteria, ml_input, entity_id_a, entity_id_b
     )
 
-    calculate_global_scores_in_all_score_mode(
-        criteria, poll, partial_scaled_scores_for_ab
-    )
+    if not partial_scaled_scores_for_ab.empty():
+        calculate_global_scores_in_all_score_mode(
+            criteria, poll, partial_scaled_scores_for_ab
+        )
 
 
 def calculate_global_scores_in_all_score_mode(
@@ -177,7 +178,7 @@ def apply_scaling_on_individual_scores_online_heuristics(
             entity_id_a,
             criteria,
         )
-        stop = True
+        return pd.DataFrame()
     all_indiv_score_b = ml_input.get_indiv_score(
         entity_id=entity_id_b, criteria=criteria
     )
@@ -188,7 +189,7 @@ def apply_scaling_on_individual_scores_online_heuristics(
             entity_id_b,
             criteria,
         )
-        stop = True
+        return pd.DataFrame()
     all_indiv_score = pd.concat([all_indiv_score_a, all_indiv_score_b])
 
     df = all_indiv_score.merge(
