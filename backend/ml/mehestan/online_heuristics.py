@@ -375,7 +375,9 @@ def run_online_heuristics(
     logger.info("Online Heuristic Mehestan for poll '%s': Done", poll.name)
 
 
-def update_user_scores(poll: Poll, user: User, uid_a: str, uid_b: str):
+def update_user_scores(
+    poll: Poll, user: User, uid_a: str, uid_b: str, delete_comparison_case: bool
+):
     ml_input = MlInputFromDb(poll_name=poll.name)
     run_online_heuristics(
         ml_input=ml_input,
@@ -383,5 +385,6 @@ def update_user_scores(poll: Poll, user: User, uid_a: str, uid_b: str):
         uid_b=uid_b,
         user_id=user.pk,
         poll=poll,
+        delete_comparison_case=delete_comparison_case,
         parallel_computing=False,
     )
