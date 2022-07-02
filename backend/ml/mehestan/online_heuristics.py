@@ -125,14 +125,20 @@ def get_new_scores_from_online_update(
 
 
 def _run_online_heuristics_for_criterion(
-    criteria: str, ml_input: MlInput, uid_a: str, uid_b: str, user_id: str, poll_pk: int
+    criteria: str,
+    ml_input: MlInput,
+    uid_a: str,
+    uid_b: str,
+    user_id: str,
+    poll_pk: int,
+    delete_comparison_case: bool,
 ):
     poll = Poll.objects.get(pk=poll_pk)
     all_comparison_user = ml_input.get_comparisons(criteria=criteria, user_id=user_id)
     entity_id_a = Entity.objects.get(uid=uid_a).pk
     entity_id_b = Entity.objects.get(uid=uid_b).pk
     if not check_requirements_are_good_for_online_heuristics(
-        criteria, all_comparison_user, entity_id_a, entity_id_b
+        criteria, all_comparison_user, entity_id_a, entity_id_b, delete_comparison_case
     ):
         return
     compute_and_update_individual_scores_online_heuristics(
@@ -148,11 +154,16 @@ def _run_online_heuristics_for_criterion(
             criteria, poll, partial_scaled_scores_for_ab
         )
 
+
 def calculate_global_scores_in_all_score_mode(
-    criteria: str, poll: Poll, df_partial_scaled_scores_for_ab: pd.DataFrame,
+    criteria: str,
+    poll: Poll,
+    df_partial_scaled_scores_for_ab: pd.DataFrame,
 ):
     for mode in ScoreMode:
-        global_scores = get_global_scores(df_partial_scaled_scores_for_ab, score_mode=mode)
+        global_scores = get_global_scores(
+            df_partial_scaled_scores_for_ab, score_mode=mode
+        )
         global_scores["criteria"] = criteria
         save_entity_scores(
             poll,
@@ -213,10 +224,13 @@ def apply_scaling_on_individual_scores_online_heuristics(
     return df
 
 
-
 def check_requirements_are_good_for_online_heuristics(
-    criteria: str, df_all_comparison_user: pd.DataFrame, entity_id_a: int, entity_id_b: int
-)
+    criteria: str,
+    df_all_comparison_user: pd.DataFrame,
+    entity_id_a: int,
+    entity_id_b: int,
+    delete_comparison_case: bool,
+):
     if df_all_comparison_user.empty:
         logger.warning(
             "_run_online_heuristics_for_criterion : no comparison  for criteria '%s'",
@@ -233,19 +247,26 @@ def check_requirements_are_good_for_online_heuristics(
             & (df_all_comparison_user.entity_b == entity_id_a)
         ].empty
     ):
-        logger.warning(
-            "_run_online_heuristics_for_criterion :  \
-            no comparison found for '%s' with '%s' and criteria '%s'",
-            entity_id_a,
-            entity_id_b,
-            criteria,
-        )
-        return False
+        if not delete_comparison_case:
+            logger.warning(
+                "_run_online_heuristics_for_criterion :  \
+                no comparison found for '%s' with '%s' and criteria '%s'",
+                entity_id_a,
+                entity_id_b,
+                criteria,
+            )
+            return False
     return True
 
 
 def compute_and_update_individual_scores_online_heuristics(
-    criteria: str, ml_input: MlInput, user_id: int, poll: Poll, df_all_comparison_user: pd.DataFrame, entity_id_a: int, entity_id_b: int
+    criteria: str,
+    ml_input: MlInput,
+    user_id: int,
+    poll: Poll,
+    df_all_comparison_user: pd.DataFrame,
+    entity_id_a: int,
+    entity_id_b: int,
 ):
     previous_individual_raw_scores = ml_input.get_indiv_score(
         user_id=user_id, criteria=criteria
@@ -289,6 +310,7 @@ def run_online_heuristics(
     uid_b: str,
     user_id: str,
     poll: Poll,
+    delete_comparison_case: bool,
     parallel_computing: bool = True,
 ):
     """
@@ -326,6 +348,7 @@ def run_online_heuristics(
         uid_a=uid_a,
         uid_b=uid_b,
         user_id=user_id,
+        delete_comparison_case=delete_comparison_case,
     )
     if parallel_computing:
         os.register_at_fork(before=db.connections.close_all)
