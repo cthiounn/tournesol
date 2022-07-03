@@ -33,18 +33,6 @@ def get_new_scores_from_online_update(
     previous_individual_raw_scores: pd.DataFrame,
 ) -> Tuple[float]:
     scores = all_comparison_user[["entity_a", "entity_b", "score"]]
-    if (id_entity_a, id_entity_b) not in {
-        twotuple_entity_id
-        for (twotuple_entity_id, _) in scores.groupby(["entity_a", "entity_b"])
-    } and (id_entity_b, id_entity_a) not in {
-        twotuple_entity_id
-        for (twotuple_entity_id, _) in scores.groupby(["entity_a", "entity_b"])
-    }:
-        logger.error(
-            "get_new_scores_from_online_update : no comparison found for '%s' with '%s'",
-            id_entity_a,
-            id_entity_b,
-        )
     scores_sym = pd.concat(
         [
             scores,
