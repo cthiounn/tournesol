@@ -1290,10 +1290,6 @@ class ComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
         self.client.force_authenticate(self.user4)
         resp = self.client.delete(
             f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[1].uid}/",
-            data={
-                "criteria_scores": [{"criteria": "criteria1", "score": 10}],
-            },
-            format="json",
         )
 
         self.assertEqual(resp.status_code, 204, resp.content)
