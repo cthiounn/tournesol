@@ -1307,7 +1307,7 @@ class ComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
             contributor_rating__entity=self.entities[0],
             criteria="criteria1",
         )
-        self.assertLess(user_score.score, 0)
+        self.assertLess(user_score.score, 10)
 
         contrib_after_update = set(
             ContributorRatingCriteriaScore.objects.all().values_list()
@@ -1315,8 +1315,8 @@ class ComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
 
         diff_update = contrib_after_update.difference(contrib_before_update)
         # the update has generate two differences
-        self.assertEqual(len(diff_update), 2)
-        self.assertEqual(len(contrib_before_update.difference(contrib_after_update)), 2)
+        self.assertEqual(len(diff_update), 0)
+        self.assertEqual(len(contrib_before_update.difference(contrib_after_update)), 0)
         # no new individual scores 8+0=8
         self.assertEqual(ContributorRatingCriteriaScore.objects.count(), 8)
         # no new global scores = 2
