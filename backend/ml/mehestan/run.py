@@ -9,7 +9,8 @@ import numpy as np
 import pandas as pd
 from django import db
 
-from ml.inputs import MlInput
+from backend.core.models import user
+from ml.inputs import MlInput, MlInputFromDb
 from ml.outputs import (
     save_contributor_scalings,
     save_contributor_scores,
@@ -130,7 +131,7 @@ def run_mehestan_for_criterion(
     )
 
 
-def update_user_scores(poll: Poll, user: User):
+def update_user_scores(poll: Poll, user: user):
     ml_input = MlInputFromDb(poll_name=poll.name)
     for criteria in poll.criterias_list:
         scores = get_individual_scores(ml_input, criteria, single_user_id=user.pk)
