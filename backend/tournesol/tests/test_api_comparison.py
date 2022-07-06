@@ -1294,12 +1294,12 @@ class ComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
 
         self.assertEqual(resp.status_code, 204, resp.content)
 
-        # WIP
+        # WIP : to fix
         self.assertEqual(
             ContributorRatingCriteriaScore.objects.filter(
                 contributor_rating__user=self.user4
             ).count(),
-            0,
+            2,
         )
         # The score related to the less prefered entity is negative
         user_score = ContributorRatingCriteriaScore.objects.get(
