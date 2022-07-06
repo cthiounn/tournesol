@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from django import db
 
-from backend.core.models.user import User
+from core.models.user import User
 from ml.inputs import MlInput, MlInputFromDb
 from ml.outputs import (
     save_contributor_scalings,
