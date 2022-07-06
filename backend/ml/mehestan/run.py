@@ -130,6 +130,23 @@ def run_mehestan_for_criterion(
     )
 
 
+def update_user_scores(poll: Poll, user: User):
+    ml_input = MlInputFromDb(poll_name=poll.name)
+    for criteria in poll.criterias_list:
+        scores = get_individual_scores(ml_input, criteria, single_user_id=user.pk)
+        scores["criteria"] = criteria
+        scores.rename(
+            columns={
+                "score": "raw_score",
+                "uncertainty": "raw_uncertainty",
+            },
+            inplace=True,
+        )
+        save_contributor_scores(
+            poll, scores, single_criteria=criteria, single_user_id=user.pk
+        )
+
+
 def run_mehestan(ml_input: MlInput, poll: Poll):
     """
     This function use multiprocessing.

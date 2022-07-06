@@ -18,7 +18,6 @@ from tournesol.models.entity_score import ScoreMode
 from tournesol.models.poll import ALGORITHM_MEHESTAN
 
 from .inputs import MlInputFromDb
-from .mehestan.run import get_individual_scores
 
 
 def save_entity_scores(
@@ -299,21 +298,4 @@ def save_contributor_scalings(poll: Poll, criteria: str, scalings: pd.DataFrame)
                 for user_id, s, delta_s, tau, delta_tau in scalings_iterator
             ),
             batch_size=10000,
-        )
-
-
-def update_user_scores(poll: Poll, user: User):
-    ml_input = MlInputFromDb(poll_name=poll.name)
-    for criteria in poll.criterias_list:
-        scores = get_individual_scores(ml_input, criteria, single_user_id=user.pk)
-        scores["criteria"] = criteria
-        scores.rename(
-            columns={
-                "score": "raw_score",
-                "uncertainty": "raw_uncertainty",
-            },
-            inplace=True,
-        )
-        save_contributor_scores(
-            poll, scores, single_criteria=criteria, single_user_id=user.pk
         )
