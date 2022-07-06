@@ -13,7 +13,7 @@ from ml.inputs import MlInput, MlInputFromDb
 from ml.outputs import (
     insert_or_update_contributor_score,
     save_entity_scores,
-    save_tournesol_score_as_sum_of_criteria,
+    save_tournesol_scores,
 )
 from tournesol.models import Entity, Poll
 from tournesol.models.entity_score import ScoreMode
@@ -360,7 +360,7 @@ def run_online_heuristics(
 
             partial_online_heuristics(criterion)
 
-    save_tournesol_score_as_sum_of_criteria(poll)
+    save_tournesol_scores(poll)
     logger.info("Online Heuristic Mehestan for poll '%s': Done", poll.name)
 
 
