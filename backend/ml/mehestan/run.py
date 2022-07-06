@@ -49,6 +49,7 @@ def get_individual_scores(
     result = pd.concat(individual_scores, ignore_index=True, copy=False)
     return result[["user_id", "entity_id", "score", "uncertainty"]]
 
+
 def run_mehestan_for_criterion(
     criteria: str,
     ml_input: MlInput,

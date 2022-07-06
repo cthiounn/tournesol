@@ -77,8 +77,12 @@ def save_tournesol_scores(poll):
         if poll.algorithm == ALGORITHM_MEHESTAN:
             # The tournesol score is simply the score associated with the main criteria
             entity.tournesol_score = next(
-                (s.score for s in entity.criteria_scores if s.criteria == poll.main_criteria),
-                None
+                (
+                    s.score
+                    for s in entity.criteria_scores
+                    if s.criteria == poll.main_criteria
+                ),
+                None,
             )
         else:
             entity.tournesol_score = 10 * sum(
@@ -112,9 +116,7 @@ def apply_score_scalings(poll: Poll, contributor_scores: pd.DataFrame):
     ml_input = MlInputFromDb(poll_name=poll.name)
     scalings = ml_input.get_user_scalings().set_index(["user_id", "criteria"])
     contributor_scores = contributor_scores.join(
-        scalings,
-        on=["user_id", "criteria"],
-        how="left"
+        scalings, on=["user_id", "criteria"], how="left"
     )
     contributor_scores["scale"].fillna(1, inplace=True)
     contributor_scores["translation"].fillna(0, inplace=True)
@@ -124,7 +126,8 @@ def apply_score_scalings(poll: Poll, contributor_scores: pd.DataFrame):
     # Apply individual scaling
     contributor_scores["uncertainty"] = (
         contributor_scores["scale"] * contributor_scores["raw_uncertainty"]
-        + contributor_scores["scale_uncertainty"] * contributor_scores["raw_score"].abs()
+        + contributor_scores["scale_uncertainty"]
+        * contributor_scores["raw_score"].abs()
         + contributor_scores["translation_uncertainty"]
     )
     contributor_scores["score"] = (
@@ -136,7 +139,9 @@ def apply_score_scalings(poll: Poll, contributor_scores: pd.DataFrame):
     scale_function = poll.scale_function
     contributor_scores["uncertainty"] = 0.5 * (
         scale_function(contributor_scores["score"] + contributor_scores["uncertainty"])
-        - scale_function(contributor_scores["score"] - contributor_scores["uncertainty"])
+        - scale_function(
+            contributor_scores["score"] - contributor_scores["uncertainty"]
+        )
     )
     contributor_scores["score"] = scale_function(contributor_scores["score"])
     return contributor_scores
@@ -153,7 +158,13 @@ def save_contributor_scores(
     if not isinstance(contributor_scores, pd.DataFrame):
         contributor_scores = pd.DataFrame(
             contributor_scores,
-            columns=["user_id", "entity_id", "criteria", "raw_score", "raw_uncertainty"]
+            columns=[
+                "user_id",
+                "entity_id",
+                "criteria",
+                "raw_score",
+                "raw_uncertainty",
+            ],
         )
 
     if "score" not in contributor_scores:
@@ -173,8 +184,9 @@ def save_contributor_scores(
     }
     ratings_to_create = set(
         (contributor_id, entity_id)
-        for contributor_id, entity_id
-        in contributor_scores[["user_id", "entity_id"]].itertuples(index=False)
+        for contributor_id, entity_id in contributor_scores[
+            ["user_id", "entity_id"]
+        ].itertuples(index=False)
         if (contributor_id, entity_id) not in rating_ids
     )
     ContributorRating.objects.bulk_create(
@@ -225,10 +237,9 @@ def save_contributor_scores(
                 score=row.score,
                 uncertainty=row.uncertainty,
                 raw_score=row.raw_score,
-                raw_uncertainty=row.raw_uncertainty
+                raw_uncertainty=row.raw_uncertainty,
             )
-            for _, row
-            in contributor_scores.iterrows()
+            for _, row in contributor_scores.iterrows()
         )
 
 
@@ -290,6 +301,7 @@ def save_contributor_scalings(poll: Poll, criteria: str, scalings: pd.DataFrame)
             batch_size=10000,
         )
 
+
 def update_user_scores(poll: Poll, user: User):
     ml_input = MlInputFromDb(poll_name=poll.name)
     for criteria in poll.criterias_list:
@@ -300,7 +312,7 @@ def update_user_scores(poll: Poll, user: User):
                 "score": "raw_score",
                 "uncertainty": "raw_uncertainty",
             },
-            inplace=True
+            inplace=True,
         )
         save_contributor_scores(
             poll, scores, single_criteria=criteria, single_user_id=user.pk
