@@ -166,7 +166,7 @@ def calculate_global_scores_in_all_score_mode(
 def apply_scaling_on_individual_scores_online_heuristics(
     criteria: str, ml_input: MlInput, entity_id_a: int, entity_id_b: int
 ):
-    all_user_scalings = ml_input.get_all_scaling_factors(criteria=criteria)
+    all_user_scalings = ml_input.get_user_scalings()
     all_indiv_score_a = ml_input.get_indiv_score(
         entity_id=entity_id_a, criteria=criteria
     )
