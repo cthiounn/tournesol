@@ -17,12 +17,13 @@ from ml.outputs import (
 )
 from tournesol.models import Entity, Poll
 from tournesol.models.entity_score import ScoreMode
+from tournesol.utils.constants import MEHESTAN_MAX_SCALED_SCORE
 
 from .global_scores import get_global_scores
 
 logger = logging.getLogger(__name__)
 
-R_MAX = 10  # Maximum score for a comparison in the input
+R_MAX = MEHESTAN_MAX_SCALED_SCORE
 ALPHA = 0.01  # Signal-to-noise hyperparameter
 
 
