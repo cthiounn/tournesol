@@ -997,7 +997,9 @@ class ComparisonWithMehestanTest(TransactionTestCase):
         self.client = APIClient()
 
     @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
-    def test_update_individual_and_global_scores_after_new_comparison_with_mehestan_run_after_update(self):
+    def test_update_individual_and_global_scores_after_new_comparison_with_mehestan_run_after_update(
+        self,
+    ):
         call_command("ml_train")
         print(ContributorRatingCriteriaScore.objects.all())
 
@@ -1052,6 +1054,7 @@ class ComparisonWithMehestanTest(TransactionTestCase):
             EntityCriteriaScore.objects.filter(score_mode="default").count(), 5
         )
 
+    @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
     def test_update_individual_scores_after_new_comparison_with_online_heuristic_update(
         self,
     ):
@@ -1159,6 +1162,7 @@ class ComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
 
         self.client = APIClient()
 
+    @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
     def test_insert_individual_scores_after_new_comparison_with_online_heuristic_update(
         self,
     ):
@@ -1221,6 +1225,7 @@ class ComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
             EntityCriteriaScore.objects.filter(score_mode="default").count(), 2
         )
 
+    @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
     def test_update_individual_scores_after_new_comparison_with_online_heuristic_update(
         self,
     ):
@@ -1274,6 +1279,7 @@ class ComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
             EntityCriteriaScore.objects.filter(score_mode="default").count(), 2
         )
 
+    @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
     def test_delete_individual_scores_after_new_comparison_with_online_heuristic_update(
         self,
     ):
@@ -1322,6 +1328,7 @@ class ComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
         self.assertEqual(
             EntityCriteriaScore.objects.filter(score_mode="default").count(), 2
         )
+
 
 class ComparisonApiWithInactivePoll(TestCase):
     def setUp(self):
