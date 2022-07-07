@@ -199,17 +199,21 @@ def apply_scaling_on_individual_scores_online_heuristics(
     df["is_supertrusted"].fillna(False, inplace=True)
 
     df = df.merge(all_user_scalings, how="left", on="user_id")
-    df["s"].fillna(1, inplace=True)
-    df["tau"].fillna(0, inplace=True)
-    df["delta_s"].fillna(0, inplace=True)
-    df["delta_tau"].fillna(0, inplace=True)
+    df["scale"].fillna(1, inplace=True)
+    df["translation"].fillna(0, inplace=True)
+    df["scale_uncertainty"].fillna(0, inplace=True)
+    df["translation_uncertainty"].fillna(0, inplace=True)
     df["uncertainty"] = (
-        df["s"] * df["uncertainty"]
-        + df["delta_s"] * df["score"].abs()
-        + df["delta_tau"]
+        df["scale"] * df["uncertainty"]
+        + df["scale_uncertainty"] * df["score"].abs()
+        + df["translation_uncertainty"]
     )
-    df["score"] = df["score"] * df["s"] + df["tau"]
-    df.drop(["s", "tau", "delta_s", "delta_tau"], axis=1, inplace=True)
+    df["score"] = df["score"] * df["scale"] + df["translation"]
+    df.drop(
+        ["scale", "translation", "scale_uncertainty", "translation_uncertainty"],
+        axis=1,
+        inplace=True,
+    )
     return df
 
 
