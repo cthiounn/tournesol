@@ -1312,7 +1312,7 @@ class ComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
             contributor_rating__entity=self.entities[0],
             criteria="criteria1",
         )
-        self.assertLess(user_score.score, 10)
+        self.assertLess(user_score.score, 200)
 
         contrib_after_update = set(
             ContributorRatingCriteriaScore.objects.all().values_list()
