@@ -19,7 +19,11 @@ from tournesol.models import Entity, Poll
 from tournesol.models.entity_score import ScoreMode
 from tournesol.utils.constants import MEHESTAN_MAX_SCALED_SCORE
 
-from .global_scores import get_global_scores
+from .global_scores import apply_poll_scaling_on_global_scores, get_global_scores
+from .poll_scaling import (
+    apply_poll_scaling_on_global_scores,
+    apply_poll_scaling_on_individual_scaled_scores,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -166,6 +170,9 @@ def _run_online_heuristics_for_criterion(
         calculate_global_scores_in_all_score_mode(
             criteria, poll, partial_scaled_scores_for_ab
         )
+        apply_poll_scaling_on_individual_scaled_scores(
+            poll, partial_scaled_scores_for_ab
+        )
 
 
 def calculate_global_scores_in_all_score_mode(
@@ -179,17 +186,7 @@ def calculate_global_scores_in_all_score_mode(
         )
         global_scores["criteria"] = criteria
 
-        # Apply poll scaling
-        scale_function = poll.scale_function
-        global_scores["uncertainty"] = 0.5 * (
-            scale_function(global_scores["score"] + global_scores["uncertainty"])
-            - scale_function(global_scores["score"] - global_scores["uncertainty"])
-        )
-        global_scores["deviation"] = 0.5 * (
-            scale_function(global_scores["score"] + global_scores["deviation"])
-            - scale_function(global_scores["score"] - global_scores["deviation"])
-        )
-        global_scores["score"] = scale_function(global_scores["score"])
+        apply_poll_scaling_on_global_scores(poll, global_scores)
 
         save_entity_scores(
             poll,

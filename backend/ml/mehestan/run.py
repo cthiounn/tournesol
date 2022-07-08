@@ -21,8 +21,16 @@ from tournesol.models import Poll
 from tournesol.models.entity_score import ScoreMode
 from tournesol.utils.constants import MEHESTAN_MAX_SCALED_SCORE
 
-from .global_scores import compute_scaled_scores, get_global_scores
+from .global_scores import (
+    apply_poll_scaling_on_global_scores,
+    compute_scaled_scores,
+    get_global_scores,
+)
 from .individual import compute_individual_score
+from .poll_scaling import (
+    apply_poll_scaling_on_global_scores,
+    apply_poll_scaling_on_individual_scaled_scores,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -108,18 +116,7 @@ def run_mehestan_for_criterion(
             poll.sigmoid_scale = scale
             poll.save(update_fields=["sigmoid_scale"])
 
-        # Apply poll scaling
-        scale_function = poll.scale_function
-        global_scores["uncertainty"] = 0.5 * (
-            scale_function(global_scores["score"] + global_scores["uncertainty"])
-            - scale_function(global_scores["score"] - global_scores["uncertainty"])
-        )
-        global_scores["deviation"] = 0.5 * (
-            scale_function(global_scores["score"] + global_scores["deviation"])
-            - scale_function(global_scores["score"] - global_scores["deviation"])
-        )
-        global_scores["score"] = scale_function(global_scores["score"])
-
+        apply_poll_scaling_on_global_scores(poll, global_scores)
         logger.info(
             "Mehestan for poll '%s': scores computed for crit '%s' and mode '%s'",
             poll.name,
@@ -130,14 +127,7 @@ def run_mehestan_for_criterion(
             poll, global_scores, single_criteria=criteria, score_mode=mode
         )
 
-    scale_function = poll.scale_function
-    scaled_scores["raw_score"] = scaled_scores["score"]
-    scaled_scores["raw_uncertainty"] = scaled_scores["uncertainty"]
-    scaled_scores["uncertainty"] = 0.5 * (
-        scale_function(scaled_scores["raw_score"] + scaled_scores["raw_uncertainty"])
-        - scale_function(scaled_scores["raw_score"] - scaled_scores["raw_uncertainty"])
-    )
-    scaled_scores["score"] = scale_function(scaled_scores["raw_score"])
+    apply_poll_scaling_on_individual_scaled_scores(poll, scaled_scores)
     scaled_scores["criteria"] = criteria
     save_contributor_scores(poll, scaled_scores, single_criteria=criteria)
 
