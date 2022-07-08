@@ -49,10 +49,12 @@ def get_individual_scores(
         individual_scores.append(scores.reset_index())
 
     if len(individual_scores) == 0:
-        return pd.DataFrame(columns=["user_id", "entity_id", "score", "uncertainty"])
+        return pd.DataFrame(
+            columns=["user_id", "entity_id", "raw_score", "raw_uncertainty"]
+        )
 
     result = pd.concat(individual_scores, ignore_index=True, copy=False)
-    return result[["user_id", "entity_id", "score", "uncertainty"]]
+    return result[["user_id", "entity_id", "raw_score", "raw_uncertainty"]]
 
 
 def update_user_scores(poll: Poll, user: User):
@@ -95,7 +97,6 @@ def run_mehestan_for_criterion(
     scaled_scores, scalings = compute_scaled_scores(
         ml_input, individual_scores=indiv_scores
     )
-
     indiv_scores["criteria"] = criteria
     save_contributor_scalings(poll, criteria, scalings)
 

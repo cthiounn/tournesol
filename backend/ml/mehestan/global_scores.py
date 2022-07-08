@@ -230,6 +230,8 @@ def compute_scaled_scores(
         - scaled individual scores: Dataframe with columns
             * `user_id`
             * `entity_id`
+            * `raw_score`
+            * `raw_uncertainty`
             * `score`
             * `uncertainty`
             * `is_public`
@@ -246,6 +248,8 @@ def compute_scaled_scores(
             columns=[
                 "user_id",
                 "entity_id",
+                "raw_score",
+                "raw_uncertainty",
                 "score",
                 "uncertainty",
                 "is_public",
@@ -255,7 +259,6 @@ def compute_scaled_scores(
         )
         scalings = pd.DataFrame(columns=["s", "tau", "delta_s", "delta_tau"])
         return scores, scalings
-
     supertrusted_scaling = get_scaling_for_supertrusted(ml_input, individual_scores)
     rp = ml_input.get_ratings_properties()
 
@@ -271,8 +274,8 @@ def compute_scaled_scores(
     df = df.join(supertrusted_scaling, on="user_id")
     df["s"].fillna(1, inplace=True)
     df["tau"].fillna(0, inplace=True)
-    df["score"] = df["s"] * df["score"] + df["tau"]
-    df["uncertainty"] *= df["s"]
+    df["score"] = df["s"] * df["raw_score"] + df["tau"]
+    df["uncertainty"] = df["raw_uncertainty"] * df["s"]
     df.drop(["s", "tau"], axis=1, inplace=True)
 
     logging.debug(
@@ -294,11 +297,11 @@ def compute_scaled_scores(
     df["delta_s"].fillna(0, inplace=True)
     df["delta_tau"].fillna(0, inplace=True)
     df["uncertainty"] = (
-        df["s"] * df["uncertainty"]
-        + df["delta_s"] * df["score"].abs()
+        df["s"] * df["raw_uncertainty"]
+        + df["delta_s"] * df["raw_score"].abs()
         + df["delta_tau"]
     )
-    df["score"] = df["score"] * df["s"] + df["tau"]
+    df["score"] = df["raw_score"] * df["s"] + df["tau"]
     df.drop(["s", "tau", "delta_s", "delta_tau"], axis=1, inplace=True)
 
     all_scalings = pd.concat([supertrusted_scaling, non_supertrusted_scaling])
