@@ -128,11 +128,15 @@ def _run_online_heuristics_for_criterion(
     2. a comparison has been updated
     3. a comparison has been deleted
 
-    * For each case, this function need to know which entities are being concerned as input and what to do
-    * For each case, we first check if the input are compliant with the data (check_requirements_are_good_for_online_heuristics)
-    * For each case, then we read the previous raw scores (compute_and_update_individual_scores_online_heuristics) and compute new scores
-    * For each case, we reapply scaling (individual and poll-scale) from previous scale
+    * For each case, this function need to know which entities
+        are being concerned as input and what to do
+    * For each case, we first check if the input are compliant
+        with the data (check_requirements_are_good_for_online_heuristics)
+    * For each case, then we read the previous raw scores 
+        (compute_and_update_individual_scores_online_heuristics) and compute new scores
+    * For each case, we reapply scaling (individual) from previous scale
     * For each case, we compute new global scores for the two entities
+        and we apply poll level scaling at global scores
 
     """
     poll = Poll.objects.get(pk=poll_pk)
@@ -174,6 +178,19 @@ def calculate_global_scores_in_all_score_mode(
             df_partial_scaled_scores_for_ab, score_mode=mode
         )
         global_scores["criteria"] = criteria
+        
+        # Apply poll scaling
+        scale_function = poll.scale_function
+        global_scores["uncertainty"] = 0.5 * (
+            scale_function(global_scores["score"] + global_scores["uncertainty"])
+            - scale_function(global_scores["score"] - global_scores["uncertainty"])
+        )
+        global_scores["deviation"] = 0.5 * (
+            scale_function(global_scores["score"] + global_scores["deviation"])
+            - scale_function(global_scores["score"] - global_scores["deviation"])
+        )
+        global_scores["score"] = scale_function(global_scores["score"])
+
         save_entity_scores(
             poll,
             global_scores,
