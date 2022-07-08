@@ -265,7 +265,7 @@ def compute_and_update_individual_scores_online_heuristics(
         user_id=user_id, criteria=criteria
     )
     previous_individual_raw_scores = previous_individual_raw_scores[
-        ["entity_id", "score"]
+        ["entity_id", "raw_score"]
     ]
     previous_individual_raw_scores = previous_individual_raw_scores.set_index(
         "entity_id"
