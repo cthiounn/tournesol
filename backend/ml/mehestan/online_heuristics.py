@@ -132,7 +132,7 @@ def _run_online_heuristics_for_criterion(
         are being concerned as input and what to do
     * For each case, we first check if the input are compliant
         with the data (check_requirements_are_good_for_online_heuristics)
-    * For each case, then we read the previous raw scores 
+    * For each case, then we read the previous raw scores
         (compute_and_update_individual_scores_online_heuristics) and compute new scores
     * For each case, we reapply scaling (individual) from previous scale
     * For each case, we compute new global scores for the two entities
@@ -178,7 +178,7 @@ def calculate_global_scores_in_all_score_mode(
             df_partial_scaled_scores_for_ab, score_mode=mode
         )
         global_scores["criteria"] = criteria
-        
+
         # Apply poll scaling
         scale_function = poll.scale_function
         global_scores["uncertainty"] = 0.5 * (
