@@ -21,10 +21,7 @@ from tournesol.models import Poll
 from tournesol.models.entity_score import ScoreMode
 from tournesol.utils.constants import MEHESTAN_MAX_SCALED_SCORE
 
-from .global_scores import (
-    compute_scaled_scores,
-    get_global_scores,
-)
+from .global_scores import compute_scaled_scores, get_global_scores
 from .individual import compute_individual_score
 from .poll_scaling import (
     apply_poll_scaling_on_global_scores,
