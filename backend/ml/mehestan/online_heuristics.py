@@ -324,23 +324,28 @@ def compute_and_update_individual_scores_online_heuristics(
     ) = get_new_scores_from_online_update(
         df_all_comparison_user, entity_id_a, entity_id_b, previous_individual_raw_scores
     )
-
-    insert_or_update_contributor_score(
-        poll=poll,
-        entity_id=entity_id_a,
-        user_id=user_id,
-        raw_score=theta_star_a,
-        criteria=criteria,
-        raw_uncertainty=delta_star_a,
+    return (
+        theta_star_a,
+        delta_star_a,
+        theta_star_b,
+        delta_star_b,
     )
-    insert_or_update_contributor_score(
-        poll=poll,
-        entity_id=entity_id_b,
-        user_id=user_id,
-        raw_score=theta_star_b,
-        criteria=criteria,
-        raw_uncertainty=delta_star_b,
-    )
+    # insert_or_update_contributor_score(
+    #     poll=poll,
+    #     entity_id=entity_id_a,
+    #     user_id=user_id,
+    #     raw_score=theta_star_a,
+    #     criteria=criteria,
+    #     raw_uncertainty=delta_star_a,
+    # )
+    # insert_or_update_contributor_score(
+    #     poll=poll,
+    #     entity_id=entity_id_b,
+    #     user_id=user_id,
+    #     raw_score=theta_star_b,
+    #     criteria=criteria,
+    #     raw_uncertainty=delta_star_b,
+    # )
 
 
 def run_online_heuristics(
