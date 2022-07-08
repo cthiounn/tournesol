@@ -12,6 +12,7 @@ from core.models import User
 from ml.inputs import MlInput, MlInputFromDb
 from ml.outputs import (
     insert_or_update_contributor_score,
+    save_contributor_scores,
     save_entity_scores,
     save_tournesol_scores,
 )
@@ -172,6 +173,10 @@ def _run_online_heuristics_for_criterion(
         )
         apply_poll_scaling_on_individual_scaled_scores(
             poll, partial_scaled_scores_for_ab
+        )
+        partial_scaled_scores_for_ab["criteria"] = criteria
+        save_contributor_scores(
+            poll, partial_scaled_scores_for_ab, single_criteria=criteria
         )
 
 
