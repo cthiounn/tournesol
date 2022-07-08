@@ -283,17 +283,17 @@ def compute_and_update_individual_scores_online_heuristics(
         poll=poll,
         entity_id=entity_id_a,
         user_id=user_id,
-        score=theta_star_a,
+        raw_score=theta_star_a,
         criteria=criteria,
-        uncertainty=delta_star_a,
+        raw_uncertainty=delta_star_a,
     )
     insert_or_update_contributor_score(
         poll=poll,
         entity_id=entity_id_b,
         user_id=user_id,
-        score=theta_star_b,
+        raw_score=theta_star_b,
         criteria=criteria,
-        uncertainty=delta_star_b,
+        raw_uncertainty=delta_star_b,
     )
 
 
