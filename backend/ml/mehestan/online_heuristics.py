@@ -11,7 +11,7 @@ from django import db
 from core.models import User
 from ml.inputs import MlInput, MlInputFromDb
 from ml.outputs import (
-    insert_or_update_contributor_score,
+    # insert_or_update_contributor_score,
     save_contributor_scores,
     save_entity_scores,
     save_tournesol_scores,
