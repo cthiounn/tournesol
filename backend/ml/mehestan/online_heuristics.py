@@ -122,6 +122,19 @@ def _run_online_heuristics_for_criterion(
     poll_pk: int,
     delete_comparison_case: bool,
 ):
+    """
+    This function apply the online heuristics for a criteria. There is 3 cases :
+    1. a new comparison has been made
+    2. a comparison has been updated
+    3. a comparison has been deleted
+
+    * For each case, this function need to know which entities are being concerned as input and what to do
+    * For each case, we first check if the input are compliant with the data (check_requirements_are_good_for_online_heuristics)
+    * For each case, then we read the previous raw scores (compute_and_update_individual_scores_online_heuristics) and compute new scores
+    * For each case, we reapply scaling (individual and poll-scale) from previous scale
+    * For each case, we compute new global scores for the two entities
+
+    """
     poll = Poll.objects.get(pk=poll_pk)
     all_comparison_user = ml_input.get_comparisons(criteria=criteria, user_id=user_id)
     entity_id_a = Entity.objects.get(uid=uid_a).pk
@@ -131,7 +144,14 @@ def _run_online_heuristics_for_criterion(
     ):
         return
     compute_and_update_individual_scores_online_heuristics(
-        criteria, ml_input, user_id, poll, all_comparison_user, entity_id_a, entity_id_b
+        criteria,
+        ml_input,
+        user_id,
+        poll,
+        all_comparison_user,
+        entity_id_a,
+        entity_id_b,
+        delete_comparison_case,
     )
 
     partial_scaled_scores_for_ab = apply_scaling_on_individual_scores_online_heuristics(
@@ -260,7 +280,14 @@ def compute_and_update_individual_scores_online_heuristics(
     df_all_comparison_user: pd.DataFrame,
     entity_id_a: int,
     entity_id_b: int,
+    delete_comparison_case: bool = False,
 ):
+    """
+    this function apply the online heuristics to raw score for the user and the concerned entities
+    1. we get all the previous scores from the user and the criteria
+    2. we compute the new raw_score and raw_uncertainty (get_new_scores_from_online_update)
+    3. we save the new raw_score
+    """
     previous_individual_raw_scores = ml_input.get_indiv_score(
         user_id=user_id, criteria=criteria
     )
