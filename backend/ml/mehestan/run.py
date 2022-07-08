@@ -22,7 +22,6 @@ from tournesol.models.entity_score import ScoreMode
 from tournesol.utils.constants import MEHESTAN_MAX_SCALED_SCORE
 
 from .global_scores import (
-    apply_poll_scaling_on_global_scores,
     compute_scaled_scores,
     get_global_scores,
 )
