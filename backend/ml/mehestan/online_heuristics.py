@@ -204,11 +204,11 @@ def apply_scaling_on_individual_scores_online_heuristics(
     df["scale_uncertainty"].fillna(0, inplace=True)
     df["translation_uncertainty"].fillna(0, inplace=True)
     df["uncertainty"] = (
-        df["scale"] * df["uncertainty"]
-        + df["scale_uncertainty"] * df["score"].abs()
+        df["scale"] * df["raw_uncertainty"]
+        + df["scale_uncertainty"] * df["raw_score"].abs()
         + df["translation_uncertainty"]
     )
-    df["score"] = df["score"] * df["scale"] + df["translation"]
+    df["score"] = df["raw_score"] * df["scale"] + df["translation"]
     df.drop(
         ["scale", "translation", "scale_uncertainty", "translation_uncertainty"],
         axis=1,
