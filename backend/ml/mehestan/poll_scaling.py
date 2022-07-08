@@ -21,10 +21,8 @@ def apply_poll_scaling_on_individual_scaled_scores(
     poll: Poll, scaled_scores: pd.DataFrame
 ):
     scale_function = poll.scale_function
-    scaled_scores["raw_score"] = scaled_scores["score"]
-    scaled_scores["raw_uncertainty"] = scaled_scores["uncertainty"]
     scaled_scores["uncertainty"] = 0.5 * (
-        scale_function(scaled_scores["raw_score"] + scaled_scores["raw_uncertainty"])
-        - scale_function(scaled_scores["raw_score"] - scaled_scores["raw_uncertainty"])
+        scale_function(scaled_scores["score"] + scaled_scores["uncertainty"])
+        - scale_function(scaled_scores["score"] - scaled_scores["uncertainty"])
     )
-    scaled_scores["score"] = scale_function(scaled_scores["raw_score"])
+    scaled_scores["score"] = scale_function(scaled_scores["score"])
