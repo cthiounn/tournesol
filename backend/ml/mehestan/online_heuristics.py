@@ -32,12 +32,12 @@ ALPHA = 0.01  # Signal-to-noise hyperparameter
 
 
 def get_new_scores_from_online_update(
-    all_comparison_user: pd.DataFrame,
+    all_comparison_user_for_criteria: pd.DataFrame,
     id_entity_a: str,
     id_entity_b: str,
     previous_individual_raw_scores: pd.DataFrame,
 ) -> Tuple[float]:
-    scores = all_comparison_user[["entity_a", "entity_b", "score"]]
+    scores = all_comparison_user_for_criteria[["entity_a", "entity_b", "score"]]
     scores_sym = pd.concat(
         [
             scores,
@@ -144,26 +144,39 @@ def _run_online_heuristics_for_criterion(
 
     """
     poll = Poll.objects.get(pk=poll_pk)
-    all_comparison_user = ml_input.get_comparisons(criteria=criteria, user_id=user_id)
+    all_comparison_of_user_for_criteria = ml_input.get_comparisons(criteria=criteria, user_id=user_id)
     entity_id_a = Entity.objects.get(uid=uid_a).pk
     entity_id_b = Entity.objects.get(uid=uid_b).pk
     if not check_requirements_are_good_for_online_heuristics(
-        criteria, all_comparison_user, entity_id_a, entity_id_b, delete_comparison_case
+        criteria, all_comparison_of_user_for_criteria, entity_id_a, entity_id_b, delete_comparison_case
     ):
         return
-    compute_and_update_individual_scores_online_heuristics(
+
+    # Here, all_comparison_of_user_for_criteria either have a pair (entity_id_b,entity_id_a)  (update/insert case)
+    # either don't have a pair (entity_id_a,entity_id_b) (delete case)
+    (
+        theta_star_a,
+        delta_star_a,
+        theta_star_b,
+        delta_star_b,
+    ) = compute_and_update_individual_scores_online_heuristics(
         criteria,
         ml_input,
         user_id,
         poll,
-        all_comparison_user,
+        all_comparison_of_user_for_criteria,
         entity_id_a,
         entity_id_b,
         delete_comparison_case,
     )
+    # so far we have recompute new indiv score for a and b, we need to recompute global score for a and b
+    # in order to so, we need all individual scaled score concerning a and b
+    # we will get those and update/insert/delete the line for {a|b}/criteria/user_id with the new raw score before scaling
+    new_data_a = (entity_id_a, theta_star_a, delta_star_a)
+    new_data_b = (entity_id_b, theta_star_b, delta_star_b)
 
     partial_scaled_scores_for_ab = apply_scaling_on_individual_scores_online_heuristics(
-        criteria, ml_input, entity_id_a, entity_id_b
+        criteria, ml_input, new_data_a, new_data_b, user_id
     )
 
     if not partial_scaled_scores_for_ab.empty:
@@ -202,31 +215,18 @@ def calculate_global_scores_in_all_score_mode(
 
 
 def apply_scaling_on_individual_scores_online_heuristics(
-    criteria: str, ml_input: MlInput, entity_id_a: int, entity_id_b: int
+    criteria: str, ml_input: MlInput, new_data_a: Tuple, new_data_b: Tuple, user_id: int
 ):
+    entity_id_a, theta_star_a, delta_star_a = new_data_a
+    entity_id_b, theta_star_b, delta_star_b = new_data_b
     all_user_scalings = ml_input.get_user_scalings()
     all_indiv_score_a = ml_input.get_indiv_score(
         entity_id=entity_id_a, criteria=criteria
     )
-    if all_indiv_score_a.empty:
-        logger.warning(
-            "_run_online_heuristics_for_criterion :  \
-            no individual score found for '%s' and criteria '%s'",
-            entity_id_a,
-            criteria,
-        )
-        return pd.DataFrame()
     all_indiv_score_b = ml_input.get_indiv_score(
         entity_id=entity_id_b, criteria=criteria
     )
-    if all_indiv_score_b.empty:
-        logger.warning(
-            "_run_online_heuristics_for_criterion :  \
-            no individual score found for '%s' and criteria '%s'",
-            entity_id_b,
-            criteria,
-        )
-        return pd.DataFrame()
+
     all_indiv_score = pd.concat([all_indiv_score_a, all_indiv_score_b])
 
     df = all_indiv_score.merge(
@@ -257,25 +257,25 @@ def apply_scaling_on_individual_scores_online_heuristics(
 
 def check_requirements_are_good_for_online_heuristics(
     criteria: str,
-    df_all_comparison_user: pd.DataFrame,
+    df_all_comparison_of_user_for_criteria: pd.DataFrame,
     entity_id_a: int,
     entity_id_b: int,
     delete_comparison_case: bool,
 ):
-    if df_all_comparison_user.empty:
+    if df_all_comparison_of_user_for_criteria.empty:
         logger.warning(
             "_run_online_heuristics_for_criterion : no comparison  for criteria '%s'",
             criteria,
         )
         return False
     if (
-        df_all_comparison_user[
-            (df_all_comparison_user.entity_a == entity_id_a)
-            & (df_all_comparison_user.entity_b == entity_id_b)
+        df_all_comparison_of_user_for_criteria[
+            (df_all_comparison_of_user_for_criteria.entity_a == entity_id_a)
+            & (df_all_comparison_of_user_for_criteria.entity_b == entity_id_b)
         ].empty
-        and df_all_comparison_user[
-            (df_all_comparison_user.entity_a == entity_id_b)
-            & (df_all_comparison_user.entity_b == entity_id_a)
+        and df_all_comparison_of_user_for_criteria[
+            (df_all_comparison_of_user_for_criteria.entity_a == entity_id_b)
+            & (df_all_comparison_of_user_for_criteria.entity_b == entity_id_a)
         ].empty
     ):
         if not delete_comparison_case:
@@ -295,7 +295,7 @@ def compute_and_update_individual_scores_online_heuristics(
     ml_input: MlInput,
     user_id: int,
     poll: Poll,
-    df_all_comparison_user: pd.DataFrame,
+    df_all_comparison_user_for_criteria: pd.DataFrame,
     entity_id_a: int,
     entity_id_b: int,
     delete_comparison_case: bool = False,
@@ -321,7 +321,7 @@ def compute_and_update_individual_scores_online_heuristics(
         theta_star_b,
         delta_star_b,
     ) = get_new_scores_from_online_update(
-        df_all_comparison_user, entity_id_a, entity_id_b, previous_individual_raw_scores
+        df_all_comparison_user_for_criteria, entity_id_a, entity_id_b, previous_individual_raw_scores
     )
     return (
         theta_star_a,
