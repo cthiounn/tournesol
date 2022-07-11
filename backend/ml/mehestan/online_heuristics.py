@@ -210,10 +210,10 @@ def _run_online_heuristics_for_criterion(
             poll, partial_scaled_scores_for_ab
         )
         partial_scaled_scores_for_ab["criteria"] = criteria
-        
-        partial_scaled_scores_for_ab_only_user=partial_scaled_scores_for_ab[partial_scaled_scores_for_ab["used_id"]==user_id]
+
+        partial_scaled_scores_for_ab_only_user=partial_scaled_scores_for_ab[partial_scaled_scores_for_ab["user_id"]==user_id]
         save_contributor_scores(
-            poll, partial_scaled_scores_for_ab, single_criteria=criteria, single_user_id=user_id
+            poll, partial_scaled_scores_for_ab_only_user, single_criteria=criteria, single_user_id=user_id
         )
 
 
@@ -290,7 +290,7 @@ def apply_scaling_on_individual_scores_online_heuristics(
         + df["scale_uncertainty"] * df["raw_score"].abs()
         + df["translation_uncertainty"]
     )
-    df.loc["score"] = df["raw_score"] * df["scale"] + df["translation"]
+    df["score"] = df["raw_score"] * df["scale"] + df["translation"]
     df.loc[df["is_supertrusted"], "uncertainty"] = df["scale"] * df["raw_uncertainty"]
 
     df.drop(
