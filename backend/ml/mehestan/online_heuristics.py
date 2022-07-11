@@ -59,7 +59,7 @@ def get_new_scores_from_online_update(
 
     # "Comparison tensor": matrix with all comparisons, values in [-R_MAX, R_MAX]
     r = scores_sym.pivot(index="entity_a", columns="entity_b", values="score")
-
+    print(r)
     r_tilde = r / (1.0 + R_MAX)
     r_tilde2 = r_tilde**2
     # r.loc[a:b] is negative when a is prefered to b.
@@ -82,6 +82,7 @@ def get_new_scores_from_online_update(
         if not previous_individual_raw_scores.index.isin([entity]).any():
             previous_individual_raw_scores.loc[entity] = 0.0
 
+    print("dot_product before", U_ab,previous_individual_raw_scores)
     dot_product = U_ab.dot(previous_individual_raw_scores)
     theta_star_a = (
         (L_tilde_a - dot_product[dot_product.index == id_entity_a].values)
@@ -93,7 +94,11 @@ def get_new_scores_from_online_update(
         .squeeze()[()]
         .item()
     )
-
+    print("L_tilde", L_tilde)
+    print("U_ab", U_ab)
+    print("previous_individual_raw_scores", previous_individual_raw_scores)
+    print("dot_product", dot_product)
+    print(id_entity_a, theta_star_a, id_entity_b, theta_star_b)
     previous_individual_raw_scores.loc[id_entity_a] = theta_star_a
     previous_individual_raw_scores.loc[id_entity_b] = theta_star_b
 
@@ -205,8 +210,10 @@ def _run_online_heuristics_for_criterion(
             poll, partial_scaled_scores_for_ab
         )
         partial_scaled_scores_for_ab["criteria"] = criteria
+        
+        partial_scaled_scores_for_ab_only_user=partial_scaled_scores_for_ab[partial_scaled_scores_for_ab["used_id"]==user_id]
         save_contributor_scores(
-            poll, partial_scaled_scores_for_ab, single_criteria=criteria
+            poll, partial_scaled_scores_for_ab, single_criteria=criteria, single_user_id=user_id
         )
 
 
@@ -246,9 +253,24 @@ def apply_scaling_on_individual_scores_online_heuristics(
     )
 
     if all_indiv_score_b.empty:
-        all_indiv_score = all_indiv_score_a
+        if all_indiv_score_a.empty:
+            all_indiv_score = pd.DataFrame(
+                columns=["user_id", "entity_id", "raw_score", "raw_uncertainty"]
+            )
+        else:
+            all_indiv_score = all_indiv_score_a
     else:
-        all_indiv_score = pd.concat([all_indiv_score_a, all_indiv_score_b])
+        if all_indiv_score_a.empty:
+            all_indiv_score = all_indiv_score_b
+        else:
+            all_indiv_score = pd.concat([all_indiv_score_a, all_indiv_score_b])
+
+    all_indiv_score = add_or_update_df_indiv_score(
+        user_id, entity_id_a, theta_star_a, delta_star_a, all_indiv_score
+    )
+    all_indiv_score = add_or_update_df_indiv_score(
+        user_id, entity_id_b, theta_star_b, delta_star_b, all_indiv_score
+    )
 
     df = all_indiv_score.merge(
         ml_input.get_ratings_properties(), how="inner", on=["user_id", "entity_id"]
@@ -262,18 +284,42 @@ def apply_scaling_on_individual_scores_online_heuristics(
     df["translation"].fillna(0, inplace=True)
     df["scale_uncertainty"].fillna(0, inplace=True)
     df["translation_uncertainty"].fillna(0, inplace=True)
-    df["uncertainty"] = (
+
+    df.loc[~df["is_supertrusted"], "uncertainty"] = (
         df["scale"] * df["raw_uncertainty"]
         + df["scale_uncertainty"] * df["raw_score"].abs()
         + df["translation_uncertainty"]
     )
-    df["score"] = df["raw_score"] * df["scale"] + df["translation"]
+    df.loc["score"] = df["raw_score"] * df["scale"] + df["translation"]
+    df.loc[df["is_supertrusted"], "uncertainty"] = df["scale"] * df["raw_uncertainty"]
+
     df.drop(
         ["scale", "translation", "scale_uncertainty", "translation_uncertainty"],
         axis=1,
         inplace=True,
     )
     return df
+
+
+def add_or_update_df_indiv_score(
+    user_id, entity_id_a, theta_star_a, delta_star_a, all_indiv_score
+):
+    if all_indiv_score[
+        (all_indiv_score["entity_id"] == entity_id_a)
+        & (all_indiv_score["user_id"] == user_id)
+    ].empty:
+        df_new_row = pd.DataFrame(
+            [(user_id, entity_id_a, theta_star_a, delta_star_a)],
+            columns=["user_id", "entity_id", "raw_score", "raw_uncertainty"],
+        )
+        all_indiv_score = pd.concat([all_indiv_score, df_new_row])
+    else:
+        all_indiv_score.loc[
+            (all_indiv_score["entity_id"] == entity_id_a)
+            & (all_indiv_score["user_id"] == user_id),
+        ["raw_score", "raw_uncertainty"]] = (theta_star_a, delta_star_a)
+
+    return all_indiv_score
 
 
 def check_requirements_are_good_for_online_heuristics(
