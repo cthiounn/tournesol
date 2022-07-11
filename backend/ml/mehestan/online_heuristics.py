@@ -186,7 +186,6 @@ def _run_online_heuristics_for_criterion(
         all_comparison_of_user_for_criteria,
         entity_id_a,
         entity_id_b,
-        delete_comparison_case,
     )
     # so far we have recompute new indiv score for a and b, we need to recompute global score for a and b
     # in order to so, we need all individual scaled score concerning a and b

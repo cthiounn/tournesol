@@ -1391,3 +1391,144 @@ class ComparisonApiWithInactivePoll(TestCase):
         self.assertContains(
             resp, "inactive poll", status_code=status.HTTP_403_FORBIDDEN
         )
+
+
+
+class AdvancedComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
+    def setUp(self):
+        self.poll = PollFactory(algorithm=ALGORITHM_MEHESTAN)
+        CriteriaRankFactory(poll=self.poll, criteria__name="criteria1")
+
+        self.entities = VideoFactory.create_batch(5)
+        (
+            self.user1,
+            self.user2,
+        ) = UserFactory.create_batch(2)
+
+        comparison_user1_1 = ComparisonFactory(
+            poll=self.poll,
+            user=self.user1,
+            entity_1=self.entities[0],
+            entity_2=self.entities[1],
+        )
+        comparison_user1_2 = ComparisonFactory(
+            poll=self.poll,
+            user=self.user1,
+            entity_1=self.entities[1],
+            entity_2=self.entities[2],
+        )
+        comparison_user1_3 = ComparisonFactory(
+            poll=self.poll,
+            user=self.user1,
+            entity_1=self.entities[0],
+            entity_2=self.entities[2],
+        )
+        comparison_user1_4 = ComparisonFactory(
+            poll=self.poll,
+            user=self.user1,
+            entity_1=self.entities[0],
+            entity_2=self.entities[3],
+        )
+        comparison_user1_5 = ComparisonFactory(
+            poll=self.poll,
+            user=self.user1,
+            entity_1=self.entities[0],
+            entity_2=self.entities[4],
+        )
+        comparison_user2 = ComparisonFactory(
+            poll=self.poll,
+            user=self.user2,
+            entity_1=self.entities[0],
+            entity_2=self.entities[1],
+        )
+        comparisons = list()
+        comparisons.append((comparison_user1_1, 10))
+        comparisons.append((comparison_user1_2, 10))
+        comparisons.append((comparison_user1_3, 10))
+        comparisons.append((comparison_user1_4, 10))
+        comparisons.append((comparison_user1_5, 10))
+        comparisons.append((comparison_user2, 10))
+
+        for (comparison, score) in comparisons:
+            ComparisonCriteriaScoreFactory(
+                comparison=comparison,
+                criteria="criteria1",
+                score=score,
+            )
+
+        self.client = APIClient()
+
+    @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
+    def test_delete_all_individual_scores_with_online_heuristic_update(
+        self,
+    ):
+        call_command("ml_train")
+        contrib_before_update = set(
+            ContributorRatingCriteriaScore.objects.all().values_list()
+        )
+        
+        self.assertEqual(ContributorRatingCriteriaScore.objects.count(), 7)
+        self.assertEqual(
+            EntityCriteriaScore.objects.filter(score_mode="default").count(), 5
+        )
+
+        self.client.force_authenticate(self.user1)
+        resp = self.client.delete(
+            f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[1].uid}/",
+        )
+
+        self.assertEqual(resp.status_code, 204, resp.content)
+        # resp = self.client.delete(
+        #     f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[2].uid}/",
+        # )
+
+        # self.assertEqual(resp.status_code, 204, resp.content)
+        # resp = self.client.delete(
+        #     f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[3].uid}/",
+        # )
+
+        # self.assertEqual(resp.status_code, 204, resp.content)
+        # resp = self.client.delete(
+        #     f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[4].uid}/",
+        # )
+
+        # self.assertEqual(resp.status_code, 204, resp.content)
+        # resp = self.client.delete(
+        #     f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[5].uid}/",
+        # )
+        
+        # self.assertEqual(resp.status_code, 204, resp.content)
+        # resp = self.client.delete(
+        #     f"/users/me/comparisons/{self.poll.name}/{self.entities[1].uid}/{self.entities[2].uid}/",
+        # )
+
+        # self.assertEqual(resp.status_code, 204, resp.content)
+        # # WIP : to fix
+        # self.assertEqual(
+        #     ContributorRatingCriteriaScore.objects.filter(
+        #         contributor_rating__user=self.user1
+        #     ).count(),
+        #     0,
+        # )
+        # # The score related to the less prefered entity is negative
+        # user_score = ContributorRatingCriteriaScore.objects.get(
+        #     contributor_rating__user=self.user1,
+        #     contributor_rating__entity=self.entities[0],
+        #     criteria="criteria1",
+        # )
+        # self.assertLess(user_score.score, 200)
+
+        # contrib_after_update = set(
+        #     ContributorRatingCriteriaScore.objects.all().values_list()
+        # )
+
+        # diff_update = contrib_after_update.difference(contrib_before_update)
+        # # the update has generate two differences
+        # self.assertEqual(len(diff_update), 0)
+        # self.assertEqual(len(contrib_before_update.difference(contrib_after_update)), 0)
+        # # no new individual scores 8+0=8
+        # self.assertEqual(ContributorRatingCriteriaScore.objects.count(), 8)
+        # # no new global scores = 2
+        # self.assertEqual(
+        #     EntityCriteriaScore.objects.filter(score_mode="default").count(), 2
+        # )
