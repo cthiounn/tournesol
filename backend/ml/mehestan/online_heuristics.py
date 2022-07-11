@@ -38,6 +38,11 @@ def get_new_scores_from_online_update(
     previous_individual_raw_scores: pd.DataFrame,
 ) -> Tuple[float]:
     scores = all_comparison_user_for_criteria[["entity_a", "entity_b", "score"]]
+    all_scores_values = set(scores["score"])
+
+    # Null Matrix case
+    if len(all_scores_values) == 1 and 0 in all_scores_values:
+        return (0, 0, 0, 0)
     scores_sym = pd.concat(
         [
             scores,
@@ -56,7 +61,6 @@ def get_new_scores_from_online_update(
 
     r_tilde = r / (1.0 + R_MAX)
     r_tilde2 = r_tilde**2
-
     # r.loc[a:b] is negative when a is prefered to b.
     l = -1.0 * r_tilde / np.sqrt(1.0 - r_tilde2)  # noqa: E741
     k = (1.0 - r_tilde2) ** 3
@@ -144,16 +148,31 @@ def _run_online_heuristics_for_criterion(
 
     """
     poll = Poll.objects.get(pk=poll_pk)
-    all_comparison_of_user_for_criteria = ml_input.get_comparisons(criteria=criteria, user_id=user_id)
+    all_comparison_of_user_for_criteria = ml_input.get_comparisons(
+        criteria=criteria, user_id=user_id
+    )
     entity_id_a = Entity.objects.get(uid=uid_a).pk
     entity_id_b = Entity.objects.get(uid=uid_b).pk
+
+    # For delete comparison, we reintroduce the comparison with a 0 score and treat like an update
+    if delete_comparison_case:
+        df_new_row = pd.DataFrame(
+            [(user_id, entity_id_a, entity_id_b, criteria, 0, 0)],
+            columns=["user_id", "entity_a", "entity_b", "criteria", "score", "weight"],
+        )
+        all_comparison_of_user_for_criteria = pd.concat(
+            [all_comparison_of_user_for_criteria, df_new_row]
+        )
+
     if not check_requirements_are_good_for_online_heuristics(
-        criteria, all_comparison_of_user_for_criteria, entity_id_a, entity_id_b, delete_comparison_case
+        criteria,
+        all_comparison_of_user_for_criteria,
+        entity_id_a,
+        entity_id_b,
     ):
         return
 
-    # Here, all_comparison_of_user_for_criteria either have a pair (entity_id_b,entity_id_a)  (update/insert case)
-    # either don't have a pair (entity_id_a,entity_id_b) (delete case)
+    # Now with previous trick, all_comparison_of_user_for_criteria have a pair (entity_id_b,entity_id_a)
     (
         theta_star_a,
         delta_star_a,
@@ -260,7 +279,6 @@ def check_requirements_are_good_for_online_heuristics(
     df_all_comparison_of_user_for_criteria: pd.DataFrame,
     entity_id_a: int,
     entity_id_b: int,
-    delete_comparison_case: bool,
 ):
     if df_all_comparison_of_user_for_criteria.empty:
         logger.warning(
@@ -278,15 +296,14 @@ def check_requirements_are_good_for_online_heuristics(
             & (df_all_comparison_of_user_for_criteria.entity_b == entity_id_a)
         ].empty
     ):
-        if not delete_comparison_case:
-            logger.warning(
-                "_run_online_heuristics_for_criterion :  \
-                no comparison found for '%s' with '%s' and criteria '%s'",
-                entity_id_a,
-                entity_id_b,
-                criteria,
-            )
-            return False
+        logger.warning(
+            "_run_online_heuristics_for_criterion :  \
+            no comparison found for '%s' with '%s' and criteria '%s'",
+            entity_id_a,
+            entity_id_b,
+            criteria,
+        )
+        return False
     return True
 
 
@@ -298,7 +315,6 @@ def compute_and_update_individual_scores_online_heuristics(
     df_all_comparison_user_for_criteria: pd.DataFrame,
     entity_id_a: int,
     entity_id_b: int,
-    delete_comparison_case: bool = False,
 ):
     """
     this function apply the online heuristics to raw score for the user and the concerned entities
@@ -321,7 +337,10 @@ def compute_and_update_individual_scores_online_heuristics(
         theta_star_b,
         delta_star_b,
     ) = get_new_scores_from_online_update(
-        df_all_comparison_user_for_criteria, entity_id_a, entity_id_b, previous_individual_raw_scores
+        df_all_comparison_user_for_criteria,
+        entity_id_a,
+        entity_id_b,
+        previous_individual_raw_scores,
     )
     return (
         theta_star_a,
