@@ -1478,31 +1478,26 @@ class AdvancedComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
         )
 
         self.assertEqual(resp.status_code, 204, resp.content)
-        # resp = self.client.delete(
-        #     f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[2].uid}/",
-        # )
+        resp = self.client.delete(
+            f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[2].uid}/",
+        )
 
-        # self.assertEqual(resp.status_code, 204, resp.content)
-        # resp = self.client.delete(
-        #     f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[3].uid}/",
-        # )
+        self.assertEqual(resp.status_code, 204, resp.content)
+        resp = self.client.delete(
+            f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[3].uid}/",
+        )
 
-        # self.assertEqual(resp.status_code, 204, resp.content)
-        # resp = self.client.delete(
-        #     f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[4].uid}/",
-        # )
-
-        # self.assertEqual(resp.status_code, 204, resp.content)
-        # resp = self.client.delete(
-        #     f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[5].uid}/",
-        # )
+        self.assertEqual(resp.status_code, 204, resp.content)
+        resp = self.client.delete(
+            f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[4].uid}/",
+        )
         
-        # self.assertEqual(resp.status_code, 204, resp.content)
-        # resp = self.client.delete(
-        #     f"/users/me/comparisons/{self.poll.name}/{self.entities[1].uid}/{self.entities[2].uid}/",
-        # )
+        self.assertEqual(resp.status_code, 204, resp.content)
+        resp = self.client.delete(
+            f"/users/me/comparisons/{self.poll.name}/{self.entities[1].uid}/{self.entities[2].uid}/",
+        )
 
-        # self.assertEqual(resp.status_code, 204, resp.content)
+        self.assertEqual(resp.status_code, 204, resp.content)
         # # WIP : to fix
         # self.assertEqual(
         #     ContributorRatingCriteriaScore.objects.filter(

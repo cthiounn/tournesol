@@ -38,6 +38,7 @@ def get_new_scores_from_online_update(
     previous_individual_raw_scores: pd.DataFrame,
 ) -> Tuple[float]:
     scores = all_comparison_user_for_criteria[["entity_a", "entity_b", "score"]]
+    all_entities = set(scores["entity_a"]) | set(scores["entity_b"])
     all_scores_values = set(scores["score"])
 
     # Null Matrix case
@@ -76,11 +77,10 @@ def get_new_scores_from_online_update(
     U_ab = -k / Kaa_np[:, None]
     U_ab = U_ab.fillna(0)
 
-    if not previous_individual_raw_scores.index.isin([id_entity_a]).any():
-        previous_individual_raw_scores.loc[id_entity_a] = 0.0
-
-    if not previous_individual_raw_scores.index.isin([id_entity_b]).any():
-        previous_individual_raw_scores.loc[id_entity_b] = 0.0
+    # to compute dot_product, we need vector of previous_scores to be complete
+    for entity in all_entities:
+        if not previous_individual_raw_scores.index.isin([entity]).any():
+            previous_individual_raw_scores.loc[entity] = 0.0
 
     dot_product = U_ab.dot(previous_individual_raw_scores)
     theta_star_a = (
@@ -245,7 +245,10 @@ def apply_scaling_on_individual_scores_online_heuristics(
         entity_id=entity_id_b, criteria=criteria
     )
 
-    all_indiv_score = pd.concat([all_indiv_score_a, all_indiv_score_b])
+    if all_indiv_score_b.empty:
+        all_indiv_score = all_indiv_score_a
+    else:
+        all_indiv_score = pd.concat([all_indiv_score_a, all_indiv_score_b])
 
     df = all_indiv_score.merge(
         ml_input.get_ratings_properties(), how="inner", on=["user_id", "entity_id"]
