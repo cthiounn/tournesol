@@ -40,9 +40,8 @@ def get_new_scores_from_online_update(
     scores = all_comparison_user_for_criteria[["entity_a", "entity_b", "score"]]
     all_entities = set(scores["entity_a"]) | set(scores["entity_b"])
     all_scores_values = set(scores["score"])
-    print(scores)
     # Null Matrix case
-    if len(all_scores_values) == 1 and np.NaN in all_scores_values:
+    if len(all_scores_values) == 1 and np.isnan(all_scores_values.pop()):
         return (0, 0, 0, 0)
     scores_sym = pd.concat(
         [
