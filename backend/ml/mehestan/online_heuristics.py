@@ -82,7 +82,7 @@ def get_new_scores_from_online_update(
         if not previous_individual_raw_scores.index.isin([entity]).any():
             previous_individual_raw_scores.loc[entity] = 0.0
 
-    print("dot_product before", U_ab,previous_individual_raw_scores)
+    print("dot_product before", U_ab, previous_individual_raw_scores)
     dot_product = U_ab.dot(previous_individual_raw_scores)
     theta_star_a = (
         (L_tilde_a - dot_product[dot_product.index == id_entity_a].values)
@@ -152,6 +152,7 @@ def _run_online_heuristics_for_criterion(
         and we apply poll level scaling at global scores
 
     """
+    print("START", ml_input.get_indiv_score(user_id=user_id))
     poll = Poll.objects.get(pk=poll_pk)
     all_comparison_of_user_for_criteria = ml_input.get_comparisons(
         criteria=criteria, user_id=user_id
@@ -194,16 +195,18 @@ def _run_online_heuristics_for_criterion(
     )
     # so far we have recompute new indiv score for a and b, we need to recompute global score for a and b
     # in order to so, we need all individual scaled score concerning a and b
-    # we will get those and update/insert/delete the line for {a|b}/criteria/user_id with the new raw score before scaling
+    # we will get those and inject the new raw score before scaling for {a|b}/criteria/user_id
     new_data_a = (entity_id_a, theta_star_a, delta_star_a)
     new_data_b = (entity_id_b, theta_star_b, delta_star_b)
 
-    partial_scaled_scores_for_ab = apply_scaling_on_individual_scores_online_heuristics(
-        criteria, ml_input, new_data_a, new_data_b, user_id
+    partial_scaled_scores_for_ab = (
+        apply_and_return_scaling_on_individual_scores_online_heuristics(
+            criteria, ml_input, new_data_a, new_data_b, user_id
+        )
     )
 
     if not partial_scaled_scores_for_ab.empty:
-        calculate_global_scores_in_all_score_mode(
+        calculate_and_save_global_scores_in_all_score_mode(
             criteria, poll, partial_scaled_scores_for_ab
         )
         apply_poll_scaling_on_individual_scaled_scores(
@@ -211,13 +214,24 @@ def _run_online_heuristics_for_criterion(
         )
         partial_scaled_scores_for_ab["criteria"] = criteria
 
-        partial_scaled_scores_for_ab_only_user=partial_scaled_scores_for_ab[partial_scaled_scores_for_ab["user_id"]==user_id]
+        # we want to save only individual scores of user
+        partial_scaled_scores_for_ab_only_user = partial_scaled_scores_for_ab[
+            partial_scaled_scores_for_ab["user_id"] == user_id
+        ]
+        # partial_scaled_scores_for_ab_only_user = partial_scaled_scores_for_ab[
+        #     (partial_scaled_scores_for_ab["entity_id"] == entity_id_a)
+        #     | (partial_scaled_scores_for_ab["entity_id"] == entity_id_b)
+        # ]
+        print("TO_SAVE", partial_scaled_scores_for_ab_only_user)
         save_contributor_scores(
-            poll, partial_scaled_scores_for_ab_only_user, single_criteria=criteria, single_user_id=user_id
+            poll,
+            partial_scaled_scores_for_ab_only_user,
+            single_criteria=criteria,
+            single_user_id=user_id,
         )
 
 
-def calculate_global_scores_in_all_score_mode(
+def calculate_and_save_global_scores_in_all_score_mode(
     criteria: str,
     poll: Poll,
     df_partial_scaled_scores_for_ab: pd.DataFrame,
@@ -239,9 +253,13 @@ def calculate_global_scores_in_all_score_mode(
         )
 
 
-def apply_scaling_on_individual_scores_online_heuristics(
+def apply_and_return_scaling_on_individual_scores_online_heuristics(
     criteria: str, ml_input: MlInput, new_data_a: Tuple, new_data_b: Tuple, user_id: int
-):
+) -> pd.DataFrame:
+    """
+    return df with all individual scaled scores concerning entity A and B,
+    in order to recompute global score of A and B
+    """
     entity_id_a, theta_star_a, delta_star_a = new_data_a
     entity_id_b, theta_star_b, delta_star_b = new_data_b
     all_user_scalings = ml_input.get_user_scalings()
@@ -275,6 +293,7 @@ def apply_scaling_on_individual_scores_online_heuristics(
     df = all_indiv_score.merge(
         ml_input.get_ratings_properties(), how="inner", on=["user_id", "entity_id"]
     )
+
     df["is_public"].fillna(False, inplace=True)
     df["is_trusted"].fillna(False, inplace=True)
     df["is_supertrusted"].fillna(False, inplace=True)
@@ -285,13 +304,12 @@ def apply_scaling_on_individual_scores_online_heuristics(
     df["scale_uncertainty"].fillna(0, inplace=True)
     df["translation_uncertainty"].fillna(0, inplace=True)
 
-    df.loc[~df["is_supertrusted"], "uncertainty"] = (
+    df["uncertainty"] = (
         df["scale"] * df["raw_uncertainty"]
         + df["scale_uncertainty"] * df["raw_score"].abs()
         + df["translation_uncertainty"]
     )
     df["score"] = df["raw_score"] * df["scale"] + df["translation"]
-    df.loc[df["is_supertrusted"], "uncertainty"] = df["scale"] * df["raw_uncertainty"]
 
     df.drop(
         ["scale", "translation", "scale_uncertainty", "translation_uncertainty"],
@@ -317,7 +335,8 @@ def add_or_update_df_indiv_score(
         all_indiv_score.loc[
             (all_indiv_score["entity_id"] == entity_id_a)
             & (all_indiv_score["user_id"] == user_id),
-        ["raw_score", "raw_uncertainty"]] = (theta_star_a, delta_star_a)
+            ["raw_score", "raw_uncertainty"],
+        ] = (theta_star_a, delta_star_a)
 
     return all_indiv_score
 
