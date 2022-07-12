@@ -40,9 +40,9 @@ def get_new_scores_from_online_update(
     scores = all_comparison_user_for_criteria[["entity_a", "entity_b", "score"]]
     all_entities = set(scores["entity_a"]) | set(scores["entity_b"])
     all_scores_values = set(scores["score"])
-
+    print(scores)
     # Null Matrix case
-    if len(all_scores_values) == 1 and 0 in all_scores_values:
+    if len(all_scores_values) == 1 and np.NaN in all_scores_values:
         return (0, 0, 0, 0)
     scores_sym = pd.concat(
         [
@@ -74,6 +74,7 @@ def get_new_scores_from_online_update(
     L_tilde_a = L_tilde[id_entity_a]
     L_tilde_b = L_tilde[id_entity_b]
 
+    print(k, Kaa_np)
     U_ab = -k / Kaa_np[:, None]
     U_ab = U_ab.fillna(0)
 
@@ -81,9 +82,13 @@ def get_new_scores_from_online_update(
     for entity in all_entities:
         if not previous_individual_raw_scores.index.isin([entity]).any():
             previous_individual_raw_scores.loc[entity] = 0.0
-
+    previous_individual_raw_scores = previous_individual_raw_scores[
+        previous_individual_raw_scores.index.isin(all_entities)
+    ]
     print("dot_product before", U_ab, previous_individual_raw_scores)
+
     dot_product = U_ab.dot(previous_individual_raw_scores)
+    print("dot_product", dot_product)
     theta_star_a = (
         (L_tilde_a - dot_product[dot_product.index == id_entity_a].values)
         .squeeze()[()]
@@ -94,10 +99,7 @@ def get_new_scores_from_online_update(
         .squeeze()[()]
         .item()
     )
-    print("L_tilde", L_tilde)
-    print("U_ab", U_ab)
-    print("previous_individual_raw_scores", previous_individual_raw_scores)
-    print("dot_product", dot_product)
+
     print(id_entity_a, theta_star_a, id_entity_b, theta_star_b)
     previous_individual_raw_scores.loc[id_entity_a] = theta_star_a
     previous_individual_raw_scores.loc[id_entity_b] = theta_star_b
@@ -163,7 +165,7 @@ def _run_online_heuristics_for_criterion(
     # For delete comparison, we reintroduce the comparison with a 0 score and treat like an update
     if delete_comparison_case:
         df_new_row = pd.DataFrame(
-            [(user_id, entity_id_a, entity_id_b, criteria, 0, 0)],
+            [(user_id, entity_id_a, entity_id_b, criteria, np.NaN, 0)],
             columns=["user_id", "entity_a", "entity_b", "criteria", "score", "weight"],
         )
         all_comparison_of_user_for_criteria = pd.concat(
@@ -212,20 +214,20 @@ def _run_online_heuristics_for_criterion(
         apply_poll_scaling_on_individual_scaled_scores(
             poll, partial_scaled_scores_for_ab
         )
-        partial_scaled_scores_for_ab["criteria"] = criteria
 
         # we want to save only individual scores of user
-        partial_scaled_scores_for_ab_only_user = partial_scaled_scores_for_ab[
-            partial_scaled_scores_for_ab["user_id"] == user_id
-        ]
-        # partial_scaled_scores_for_ab_only_user = partial_scaled_scores_for_ab[
-        #     (partial_scaled_scores_for_ab["entity_id"] == entity_id_a)
-        #     | (partial_scaled_scores_for_ab["entity_id"] == entity_id_b)
-        # ]
-        print("TO_SAVE", partial_scaled_scores_for_ab_only_user)
+        score_to_save = ml_input.get_indiv_score(user_id=user_id)
+        score_to_save = add_or_update_df_indiv_score(
+            user_id, entity_id_a, theta_star_a, delta_star_a, score_to_save
+        )
+        score_to_save = add_or_update_df_indiv_score(
+            user_id, entity_id_b, theta_star_b, delta_star_b, score_to_save
+        )
+        score_to_save["criteria"] = criteria
+        print("TO_SAVE", score_to_save)
         save_contributor_scores(
             poll,
-            partial_scaled_scores_for_ab_only_user,
+            score_to_save,
             single_criteria=criteria,
             single_user_id=user_id,
         )
