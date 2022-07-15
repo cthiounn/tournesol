@@ -17,7 +17,7 @@ from ml.outputs import (  # insert_or_update_contributor_score,
 )
 from tournesol.models import Entity, Poll
 from tournesol.models.entity_score import ScoreMode
-from tournesol.utils.constants import MEHESTAN_MAX_SCALED_SCORE
+from tournesol.utils.constants import COMPARISON_MAX
 
 from .global_scores import get_global_scores
 from .poll_scaling import (
@@ -27,7 +27,7 @@ from .poll_scaling import (
 
 logger = logging.getLogger(__name__)
 
-R_MAX = MEHESTAN_MAX_SCALED_SCORE
+R_MAX = COMPARISON_MAX
 ALPHA = 0.01  # Signal-to-noise hyperparameter
 
 
@@ -63,16 +63,23 @@ def get_new_scores_from_online_update(
     # r.loc[a:b] is negative when a is prefered to b.
     l = -1.0 * r_tilde / np.sqrt(1.0 - r_tilde2)  # noqa: E741
     k = (1.0 - r_tilde2) ** 3
-
+    print("start ohm",id_entity_a,id_entity_b)
     L = k.mul(l).sum(axis=1)
 
     Kaa_np = np.array(k.sum(axis=1) + ALPHA)
-
     L_tilde = L / Kaa_np
+
+    print("r",r)
+    print("r_tilde",r_tilde)
+    print("r_tilde2",r_tilde2)
+    print(np.sqrt(1.0 - r_tilde2))
+    print("l",l)
+    print("k",k)
     L_tilde_a = L_tilde[id_entity_a]
     L_tilde_b = L_tilde[id_entity_b]
 
     U_ab = -k / Kaa_np[:, None]
+    print(k,U_ab)
     U_ab = U_ab.fillna(0)
 
     # to compute dot_product, we need vector of previous_scores to be complete
