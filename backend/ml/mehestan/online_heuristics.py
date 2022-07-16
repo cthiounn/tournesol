@@ -58,7 +58,7 @@ def get_new_scores_from_online_update(
 
     # "Comparison tensor": matrix with all comparisons, values in [-R_MAX, R_MAX]
     r = scores_sym.pivot(index="entity_a", columns="entity_b", values="score")
-
+    dont_compute_a, dont_compute_b = False, False
     if (
         r.loc[
             id_entity_a,
@@ -266,6 +266,7 @@ def _run_online_heuristics_for_criterion(
         )
         score_to_save["criteria"] = criteria
         print("TO_SAVE", score_to_save)
+        print(sum(score_to_save['raw_score']))
         save_contributor_scores(
             poll,
             score_to_save,
@@ -458,22 +459,6 @@ def compute_and_update_individual_scores_online_heuristics(
         theta_star_b,
         delta_star_b,
     )
-    # insert_or_update_contributor_score(
-    #     poll=poll,
-    #     entity_id=entity_id_a,
-    #     user_id=user_id,
-    #     raw_score=theta_star_a,
-    #     criteria=criteria,
-    #     raw_uncertainty=delta_star_a,
-    # )
-    # insert_or_update_contributor_score(
-    #     poll=poll,
-    #     entity_id=entity_id_b,
-    #     user_id=user_id,
-    #     raw_score=theta_star_b,
-    #     criteria=criteria,
-    #     raw_uncertainty=delta_star_b,
-    # )
 
 
 def run_online_heuristics(
