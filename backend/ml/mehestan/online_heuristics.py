@@ -58,85 +58,115 @@ def get_new_scores_from_online_update(
 
     # "Comparison tensor": matrix with all comparisons, values in [-R_MAX, R_MAX]
     r = scores_sym.pivot(index="entity_a", columns="entity_b", values="score")
-    r_tilde = r / (1.0 + R_MAX)
-    r_tilde2 = r_tilde**2
-    # r.loc[a:b] is negative when a is prefered to b.
-    l = -1.0 * r_tilde / np.sqrt(1.0 - r_tilde2)  # noqa: E741
-    k = (1.0 - r_tilde2) ** 3
-    print("start ohm",id_entity_a,id_entity_b)
-    L = k.mul(l).sum(axis=1)
 
-    Kaa_np = np.array(k.sum(axis=1) + ALPHA)
-    L_tilde = L / Kaa_np
+    if (
+        r.loc[
+            id_entity_a,
+        ]
+        .dropna()
+        .empty
+    ):
+        dont_compute_a = True
+    if (
+        r.loc[
+            id_entity_b,
+        ]
+        .dropna()
+        .empty
+    ):
+        dont_compute_b = True
 
-    print("r",r)
-    print("r_tilde",r_tilde)
-    print("r_tilde2",r_tilde2)
-    print(np.sqrt(1.0 - r_tilde2))
-    print("l",l)
-    print("k",k)
+    if dont_compute_a and dont_compute_b:
+        return (0, 0, 0, 0)
+    else:
+        r_tilde = r / (1.0 + R_MAX)
+        r_tilde2 = r_tilde**2
+        # r.loc[a:b] is negative when a is prefered to b.
+        l = -1.0 * r_tilde / np.sqrt(1.0 - r_tilde2)  # noqa: E741
+        k = (1.0 - r_tilde2) ** 3
+
+        L = k.mul(l).sum(axis=1)
+
+        Kaa_np = np.array(k.sum(axis=1) + ALPHA)
+        L_tilde = L / Kaa_np
+
+        U_ab = -k / Kaa_np[:, None]
+        U_ab = U_ab.fillna(0)
+
+        # to compute dot_product, we need vector of previous_scores to be complete
+        for entity in all_entities:
+            if not previous_individual_raw_scores.index.isin([entity]).any():
+                previous_individual_raw_scores.loc[entity] = 0.0
+        previous_individual_raw_scores = previous_individual_raw_scores[
+            previous_individual_raw_scores.index.isin(all_entities)
+        ].copy()
+
+        dot_product = U_ab.dot(previous_individual_raw_scores)
+
+        if dont_compute_a:
+            theta_star_a = 0.0
+        else:
+            theta_star_a = compute_new_individual_score_with_heuristics_update(
+                id_entity_a, L_tilde, dot_product
+            )
+
+        if dont_compute_b:
+            theta_star_b = 0.0
+        else:
+            theta_star_b = compute_new_individual_score_with_heuristics_update(
+                id_entity_b, L_tilde, dot_product
+            )
+
+        previous_individual_raw_scores.loc[
+            previous_individual_raw_scores.index == id_entity_a, "raw_score"
+        ] = theta_star_a
+        previous_individual_raw_scores.loc[
+            previous_individual_raw_scores.index == id_entity_b, "raw_score"
+        ] = theta_star_b
+
+        # Compute uncertainties
+        scores_series = previous_individual_raw_scores.squeeze()
+        scores_np = scores_series.to_numpy()
+        theta_star_ab = pd.DataFrame(
+            np.subtract.outer(scores_np, scores_np),
+            index=scores_series.index,
+            columns=scores_series.index,
+        )
+
+        K_diag = pd.DataFrame(
+            data=np.diag(k.sum(axis=1) + ALPHA),
+            index=k.index,
+            columns=k.index,
+        )
+
+        sigma2 = (1.0 + (np.nansum(k * (l - theta_star_ab) ** 2) / 2)) / len(scores)
+
+        delta_star = pd.Series(
+            np.sqrt(sigma2) / np.sqrt(np.diag(K_diag)), index=K_diag.index
+        )
+
+        if dont_compute_a:
+            delta_star_a = 0.0
+        else:
+            delta_star_a = delta_star[id_entity_a]
+        if dont_compute_b:
+            delta_star_b = 0.0
+        else:
+            delta_star_b = delta_star[id_entity_b]
+
+    return (theta_star_a, delta_star_a, theta_star_b, delta_star_b)
+
+
+def compute_new_individual_score_with_heuristics_update(
+    id_entity_a, L_tilde, dot_product
+):
     L_tilde_a = L_tilde[id_entity_a]
-    L_tilde_b = L_tilde[id_entity_b]
-
-    U_ab = -k / Kaa_np[:, None]
-    print(k,U_ab)
-    U_ab = U_ab.fillna(0)
-
-    # to compute dot_product, we need vector of previous_scores to be complete
-    for entity in all_entities:
-        if not previous_individual_raw_scores.index.isin([entity]).any():
-            previous_individual_raw_scores.loc[entity] = 0.0
-    previous_individual_raw_scores = previous_individual_raw_scores[
-        previous_individual_raw_scores.index.isin(all_entities)
-    ].copy()
-
-    dot_product = U_ab.dot(previous_individual_raw_scores)
-
     theta_star_a = (
         (L_tilde_a - dot_product[dot_product.index == id_entity_a].values)
         .squeeze()[()]
         .item()
     )
-    theta_star_b = (
-        (L_tilde_b - dot_product[dot_product.index == id_entity_b].values)
-        .squeeze()[()]
-        .item()
-    )
-
-    previous_individual_raw_scores.loc[
-        previous_individual_raw_scores.index == id_entity_a, "raw_score"
-    ] = theta_star_a
-    previous_individual_raw_scores.loc[
-        previous_individual_raw_scores.index == id_entity_b, "raw_score"
-    ] = theta_star_b
-
-    print("debug", id_entity_a, theta_star_a, id_entity_b, theta_star_b)
-    print(previous_individual_raw_scores)
-    # Compute uncertainties
-    scores_series = previous_individual_raw_scores.squeeze()
-    scores_np = scores_series.to_numpy()
-    theta_star_ab = pd.DataFrame(
-        np.subtract.outer(scores_np, scores_np),
-        index=scores_series.index,
-        columns=scores_series.index,
-    )
-    print(theta_star_ab)
-    K_diag = pd.DataFrame(
-        data=np.diag(k.sum(axis=1) + ALPHA),
-        index=k.index,
-        columns=k.index,
-    )
-    print(K_diag)
-    sigma2 = (1.0 + (np.nansum(k * (l - theta_star_ab) ** 2) / 2)) / len(scores)
-    print(sigma2)
-    delta_star = pd.Series(
-        np.sqrt(sigma2) / np.sqrt(np.diag(K_diag)), index=K_diag.index
-    )
-    print(delta_star)
-    delta_star_a = delta_star[id_entity_a]
-    delta_star_b = delta_star[id_entity_b]
-
-    return (theta_star_a, delta_star_a, theta_star_b, delta_star_b)
+    return theta_star_a
 
 
 def _run_online_heuristics_for_criterion(
