@@ -144,7 +144,6 @@ def get_new_scores_from_online_update(
         delta_star = pd.Series(
             np.sqrt(sigma2) / np.sqrt(np.diag(K_diag)), index=K_diag.index
         )
-
         if dont_compute_a:
             delta_star_a = 0.0
         else:
@@ -266,7 +265,7 @@ def _run_online_heuristics_for_criterion(
         )
         score_to_save["criteria"] = criteria
         print("TO_SAVE", score_to_save)
-        print(sum(score_to_save['raw_score']))
+        print(sum(score_to_save["raw_score"]))
         save_contributor_scores(
             poll,
             score_to_save,

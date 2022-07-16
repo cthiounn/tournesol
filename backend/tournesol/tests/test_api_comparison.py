@@ -1393,7 +1393,6 @@ class ComparisonApiWithInactivePoll(TestCase):
         )
 
 
-
 class AdvancedComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
     def setUp(self):
         self.poll = PollFactory(algorithm=ALGORITHM_MEHESTAN)
@@ -1466,7 +1465,7 @@ class AdvancedComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
         contrib_before_update = set(
             ContributorRatingCriteriaScore.objects.all().values_list()
         )
-        
+
         self.assertEqual(ContributorRatingCriteriaScore.objects.count(), 7)
         self.assertEqual(
             EntityCriteriaScore.objects.filter(score_mode="default").count(), 5
@@ -1491,39 +1490,28 @@ class AdvancedComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
         resp = self.client.delete(
             f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[4].uid}/",
         )
-        
+
         self.assertEqual(resp.status_code, 204, resp.content)
         resp = self.client.delete(
             f"/users/me/comparisons/{self.poll.name}/{self.entities[1].uid}/{self.entities[2].uid}/",
         )
 
         self.assertEqual(resp.status_code, 204, resp.content)
-        # # WIP : to fix
-        # self.assertEqual(
-        #     ContributorRatingCriteriaScore.objects.filter(
-        #         contributor_rating__user=self.user1
-        #     ).count(),
-        #     0,
-        # )
-        # # The score related to the less prefered entity is negative
-        # user_score = ContributorRatingCriteriaScore.objects.get(
-        #     contributor_rating__user=self.user1,
-        #     contributor_rating__entity=self.entities[0],
-        #     criteria="criteria1",
-        # )
-        # self.assertLess(user_score.score, 200)
+        # 5 indiv score with 0.0 score
+        self.assertEqual(
+            ContributorRatingCriteriaScore.objects.filter(
+                contributor_rating__user=self.user1
+            ).count(),
+            5,
+        )
+        for (
+            contributorRatingCriteriaScore
+        ) in ContributorRatingCriteriaScore.objects.filter(
+            contributor_rating__user=self.user1
+        ).all():
+            self.assertEqual(contributorRatingCriteriaScore.score, 0.0)
 
-        # contrib_after_update = set(
-        #     ContributorRatingCriteriaScore.objects.all().values_list()
-        # )
-
-        # diff_update = contrib_after_update.difference(contrib_before_update)
-        # # the update has generate two differences
-        # self.assertEqual(len(diff_update), 0)
-        # self.assertEqual(len(contrib_before_update.difference(contrib_after_update)), 0)
-        # # no new individual scores 8+0=8
-        # self.assertEqual(ContributorRatingCriteriaScore.objects.count(), 8)
-        # # no new global scores = 2
-        # self.assertEqual(
-        #     EntityCriteriaScore.objects.filter(score_mode="default").count(), 2
-        # )
+        # # no new global scores = 5
+        self.assertEqual(
+            EntityCriteriaScore.objects.filter(score_mode="default").count(), 5
+        )
