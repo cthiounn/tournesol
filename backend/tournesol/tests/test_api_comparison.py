@@ -1515,3 +1515,40 @@ class AdvancedComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
         self.assertEqual(
             EntityCriteriaScore.objects.filter(score_mode="default").count(), 5
         )
+    
+    @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
+    def test_update_all_individual_scores_with_online_heuristic_update(
+        self,
+    ):
+        call_command("ml_train")
+        contrib_before_update = set(
+            ContributorRatingCriteriaScore.objects.all().values_list()
+        )
+
+        self.assertEqual(ContributorRatingCriteriaScore.objects.count(), 7)
+        self.assertEqual(
+            EntityCriteriaScore.objects.filter(score_mode="default").count(), 5
+        )
+
+        self.client.force_authenticate(self.user1)
+        resp = self.client.put(
+            f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[1].uid}/",
+            data={
+                "criteria_scores": [{"criteria": "criteria1", "score": 0}],
+            },
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, 200, resp.content)
+        # 5 indiv score with 0.0 score
+        self.assertEqual(
+            ContributorRatingCriteriaScore.objects.filter(
+                contributor_rating__user=self.user1
+            ).count(),
+            5,
+        )
+
+        # no new global scores = 5
+        self.assertEqual(
+            EntityCriteriaScore.objects.filter(score_mode="default").count(), 5
+        )
