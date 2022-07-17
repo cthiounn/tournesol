@@ -166,8 +166,8 @@ def compute_new_individual_score_with_heuristics_update(
         .squeeze()[()]
         .item()
     )
-    print(L_tilde,dot_product)
-    print(L_tilde_a,dot_product[dot_product.index == id_entity_a].values)
+    print(L_tilde, dot_product)
+    print(L_tilde_a, dot_product[dot_product.index == id_entity_a].values)
     return theta_star_a
 
 
