@@ -58,7 +58,7 @@ def get_new_scores_from_online_update(
 
     # "Comparison tensor": matrix with all comparisons, values in [-R_MAX, R_MAX]
     r = scores_sym.pivot(index="entity_a", columns="entity_b", values="score")
-    print(r)
+    # print(r)
     dont_compute_a, dont_compute_b = False, False
     if (
         r.loc[
@@ -166,8 +166,6 @@ def compute_new_individual_score_with_heuristics_update(
         .squeeze()[()]
         .item()
     )
-    print(L_tilde, dot_product)
-    print(L_tilde_a, dot_product[dot_product.index == id_entity_a].values)
     return theta_star_a
 
 
@@ -197,7 +195,7 @@ def _run_online_heuristics_for_criterion(
         and we apply poll level scaling at global scores
 
     """
-    print("START", ml_input.get_indiv_score(user_id=user_id))
+    # print("START", ml_input.get_indiv_score(user_id=user_id))
     poll = Poll.objects.get(pk=poll_pk)
     all_comparison_of_user_for_criteria = ml_input.get_comparisons(
         criteria=criteria, user_id=user_id
@@ -269,8 +267,8 @@ def _run_online_heuristics_for_criterion(
             user_id, entity_id_b, theta_star_b, delta_star_b, score_to_save
         )
         score_to_save["criteria"] = criteria
-        print("TO_SAVE", score_to_save)
-        print(sum(score_to_save["raw_score"]))
+        # print("TO_SAVE", score_to_save)
+        # print(sum(score_to_save["raw_score"]))
         save_contributor_scores(
             poll,
             score_to_save,
