@@ -58,6 +58,7 @@ def get_new_scores_from_online_update(
 
     # "Comparison tensor": matrix with all comparisons, values in [-R_MAX, R_MAX]
     r = scores_sym.pivot(index="entity_a", columns="entity_b", values="score")
+    print(r)
     dont_compute_a, dont_compute_b = False, False
     if (
         r.loc[
@@ -165,6 +166,8 @@ def compute_new_individual_score_with_heuristics_update(
         .squeeze()[()]
         .item()
     )
+    print(L_tilde,dot_product)
+    print(L_tilde_a,dot_product[dot_product.index == id_entity_a].values)
     return theta_star_a
 
 
@@ -220,7 +223,8 @@ def _run_online_heuristics_for_criterion(
     ):
         return
 
-    # Now with previous trick, all_comparison_of_user_for_criteria have a pair (entity_id_b,entity_id_a)
+    # Now with previous trick,
+    # all_comparison_of_user_for_criteria have a pair (entity_id_b,entity_id_a)
     (
         theta_star_a,
         delta_star_a,
@@ -235,7 +239,8 @@ def _run_online_heuristics_for_criterion(
         entity_id_a,
         entity_id_b,
     )
-    # so far we have recompute new indiv score for a and b, we need to recompute global score for a and b
+    # so far we have recompute new indiv score for a and b,
+    # we need to recompute global score for a and b
     # in order to so, we need all individual scaled score concerning a and b
     # we will get those and inject the new raw score before scaling for {a|b}/criteria/user_id
     new_data_a = (entity_id_a, theta_star_a, delta_star_a)
