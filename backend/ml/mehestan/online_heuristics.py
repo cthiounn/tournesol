@@ -58,7 +58,6 @@ def get_new_scores_from_online_update(
 
     # "Comparison tensor": matrix with all comparisons, values in [-R_MAX, R_MAX]
     r = scores_sym.pivot(index="entity_a", columns="entity_b", values="score")
-    # print(r)
     dont_compute_a, dont_compute_b = False, False
     if (
         r.loc[
@@ -87,7 +86,6 @@ def get_new_scores_from_online_update(
         k = (1.0 - r_tilde2) ** 3
 
         L = k.mul(l).sum(axis=1)
-
         Kaa_np = np.array(k.sum(axis=1) + ALPHA)
         L_tilde = L / Kaa_np
 
@@ -117,6 +115,9 @@ def get_new_scores_from_online_update(
             theta_star_b = compute_new_individual_score_with_heuristics_update(
                 id_entity_b, L_tilde, dot_product
             )
+
+        new_scores=L_tilde-dot_product["raw_score"]
+        #print("new_scores",new_scores,sum(new_scores))
 
         previous_individual_raw_scores.loc[
             previous_individual_raw_scores.index == id_entity_a, "raw_score"
@@ -195,7 +196,7 @@ def _run_online_heuristics_for_criterion(
         and we apply poll level scaling at global scores
 
     """
-    # print("START", ml_input.get_indiv_score(user_id=user_id))
+    # print("START", ml_input.get_indiv_score(user_id=user_id),sum(ml_input.get_indiv_score(user_id=user_id)["raw_score"]))
     poll = Poll.objects.get(pk=poll_pk)
     all_comparison_of_user_for_criteria = ml_input.get_comparisons(
         criteria=criteria, user_id=user_id
@@ -221,7 +222,7 @@ def _run_online_heuristics_for_criterion(
     ):
         return
 
-    # Now with previous trick,
+    # Now with previous trick and valid condition check,
     # all_comparison_of_user_for_criteria have a pair (entity_id_b,entity_id_a)
     (
         theta_star_a,
@@ -268,7 +269,7 @@ def _run_online_heuristics_for_criterion(
         )
         score_to_save["criteria"] = criteria
         # print("TO_SAVE", score_to_save)
-        # print(sum(score_to_save["raw_score"]))
+        print(sum(score_to_save["raw_score"]))
         save_contributor_scores(
             poll,
             score_to_save,

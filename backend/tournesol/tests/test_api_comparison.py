@@ -1512,7 +1512,7 @@ class AdvancedComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
         self.assertEqual(
             EntityCriteriaScore.objects.filter(score_mode="default").count(), 5
         )
-    
+
     @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
     def test_update_all_individual_scores_with_online_heuristic_update(
         self,
@@ -1535,7 +1535,7 @@ class AdvancedComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
             },
             format="json",
         )
-
+        call_command("ml_train")
         self.assertEqual(resp.status_code, 200, resp.content)
         resp = self.client.put(
             f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[2].uid}/",
@@ -1545,8 +1545,8 @@ class AdvancedComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
             format="json",
         )
 
-        self.assertEqual(resp.status_code, 200, resp.content)        
-        
+        self.assertEqual(resp.status_code, 200, resp.content)
+
         resp = self.client.put(
             f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[3].uid}/",
             data={
@@ -1573,7 +1573,6 @@ class AdvancedComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
             },
             format="json",
         )
-        call_command("ml_train")
         resp = self.client.put(
             f"/users/me/comparisons/{self.poll.name}/{self.entities[1].uid}/{self.entities[2].uid}/",
             data={
@@ -1581,8 +1580,9 @@ class AdvancedComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
             },
             format="json",
         )
+
         self.assertEqual(resp.status_code, 200, resp.content)
-                # 5 indiv score with 0.0 score
+        # 5 indiv score with 0.0 score
         self.assertEqual(
             ContributorRatingCriteriaScore.objects.filter(
                 contributor_rating__user=self.user1
@@ -1591,6 +1591,278 @@ class AdvancedComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
         )
 
         # no new global scores = 5
+        self.assertEqual(
+            EntityCriteriaScore.objects.filter(score_mode="default").count(), 5
+        )
+
+
+class ExpertComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
+    def setUp(self):
+        self.poll = PollFactory(algorithm=ALGORITHM_MEHESTAN)
+        CriteriaRankFactory(poll=self.poll, criteria__name="criteria1")
+
+        self.entities = VideoFactory.create_batch(5)
+        (
+            self.user1,
+            self.user2,
+        ) = UserFactory.create_batch(2)
+
+        comparison_user1_1 = ComparisonFactory(
+            poll=self.poll,
+            user=self.user1,
+            entity_1=self.entities[0],
+            entity_2=self.entities[1],
+        )
+        comparison_user1_2 = ComparisonFactory(
+            poll=self.poll,
+            user=self.user1,
+            entity_1=self.entities[1],
+            entity_2=self.entities[2],
+        )
+        comparison_user1_3 = ComparisonFactory(
+            poll=self.poll,
+            user=self.user1,
+            entity_1=self.entities[2],
+            entity_2=self.entities[3],
+        )
+        comparison_user1_4 = ComparisonFactory(
+            poll=self.poll,
+            user=self.user1,
+            entity_1=self.entities[3],
+            entity_2=self.entities[4],
+        )
+        comparison_user1_5 = ComparisonFactory(
+            poll=self.poll,
+            user=self.user1,
+            entity_1=self.entities[4],
+            entity_2=self.entities[0],
+        )
+        comparison_user2 = ComparisonFactory(
+            poll=self.poll,
+            user=self.user2,
+            entity_1=self.entities[0],
+            entity_2=self.entities[1],
+        )
+        comparisons = list()
+        comparisons.append((comparison_user1_1, 10))
+        comparisons.append((comparison_user1_2, 10))
+        comparisons.append((comparison_user1_3, 10))
+        comparisons.append((comparison_user1_4, 10))
+        comparisons.append((comparison_user1_5, 10))
+        comparisons.append((comparison_user2, 10))
+
+        for (comparison, score) in comparisons:
+            ComparisonCriteriaScoreFactory(
+                comparison=comparison,
+                criteria="criteria1",
+                score=score,
+            )
+
+        self.client = APIClient()
+
+    @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
+    def test_delete_all_individual_scores_with_online_heuristic_update(
+        self,
+    ):
+        call_command("ml_train")
+
+        self.assertEqual(ContributorRatingCriteriaScore.objects.count(), 7)
+        self.assertEqual(
+            EntityCriteriaScore.objects.filter(score_mode="default").count(), 5
+        )
+
+        self.client.force_authenticate(self.user1)
+        resp = self.client.delete(
+            f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[1].uid}/",
+        )
+
+        self.assertEqual(resp.status_code, 204, resp.content)
+        resp = self.client.delete(
+            f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[2].uid}/",
+        )
+
+        self.assertEqual(resp.status_code, 204, resp.content)
+        resp = self.client.delete(
+            f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[3].uid}/",
+        )
+
+        self.assertEqual(resp.status_code, 204, resp.content)
+        resp = self.client.delete(
+            f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[4].uid}/",
+        )
+
+        self.assertEqual(resp.status_code, 204, resp.content)
+        resp = self.client.delete(
+            f"/users/me/comparisons/{self.poll.name}/{self.entities[1].uid}/{self.entities[2].uid}/",
+        )
+
+        self.assertEqual(resp.status_code, 204, resp.content)
+        # 5 indiv score with 0.0 score
+        self.assertEqual(
+            ContributorRatingCriteriaScore.objects.filter(
+                contributor_rating__user=self.user1
+            ).count(),
+            5,
+        )
+        for (
+            contributorRatingCriteriaScore
+        ) in ContributorRatingCriteriaScore.objects.filter(
+            contributor_rating__user=self.user1
+        ).all():
+            self.assertEqual(contributorRatingCriteriaScore.score, 0.0)
+
+        # # no new global scores = 5
+        self.assertEqual(
+            EntityCriteriaScore.objects.filter(score_mode="default").count(), 5
+        )
+
+    @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
+    def test_update_all_individual_scores_with_online_heuristic_update(
+        self,
+    ):
+        call_command("ml_train")
+
+        self.assertEqual(ContributorRatingCriteriaScore.objects.count(), 7)
+        self.assertEqual(
+            EntityCriteriaScore.objects.filter(score_mode="default").count(), 5
+        )
+
+        self.client.force_authenticate(self.user1)
+        resp = self.client.put(
+            f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[1].uid}/",
+            data={
+                "criteria_scores": [{"criteria": "criteria1", "score": 0}],
+            },
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, 200, resp.content)
+        resp = self.client.put(
+            f"/users/me/comparisons/{self.poll.name}/{self.entities[1].uid}/{self.entities[2].uid}/",
+            data={
+                "criteria_scores": [{"criteria": "criteria1", "score": 0}],
+            },
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, 200, resp.content)
+
+        resp = self.client.put(
+            f"/users/me/comparisons/{self.poll.name}/{self.entities[2].uid}/{self.entities[3].uid}/",
+            data={
+                "criteria_scores": [{"criteria": "criteria1", "score": 0}],
+            },
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, 200, resp.content)
+        resp = self.client.put(
+            f"/users/me/comparisons/{self.poll.name}/{self.entities[3].uid}/{self.entities[4].uid}/",
+            data={
+                "criteria_scores": [{"criteria": "criteria1", "score": 0}],
+            },
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, 200, resp.content)
+
+        resp = self.client.put(
+            f"/users/me/comparisons/{self.poll.name}/{self.entities[4].uid}/{self.entities[0].uid}/",
+            data={
+                "criteria_scores": [{"criteria": "criteria1", "score": 0}],
+            },
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, 200, resp.content)
+        # 5 indiv score with 0.0 score
+        self.assertEqual(
+            ContributorRatingCriteriaScore.objects.filter(
+                contributor_rating__user=self.user1
+            ).count(),
+            5,
+        )
+
+        # no new global scores = 5
+        self.assertEqual(
+            EntityCriteriaScore.objects.filter(score_mode="default").count(), 5
+        )
+
+
+class MyriadOfComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
+    def setUp(self):
+        self.poll = PollFactory(algorithm=ALGORITHM_MEHESTAN)
+        CriteriaRankFactory(poll=self.poll, criteria__name="criteria1")
+
+        self.number_entities = 100
+        self.entities = VideoFactory.create_batch(self.number_entities)
+        (
+            self.user1,
+            self.user2,
+        ) = UserFactory.create_batch(2)
+
+        comparisons = [
+            (
+                ComparisonFactory(
+                    poll=self.poll,
+                    user=self.user1,
+                    entity_1=self.entities[i],
+                    entity_2=self.entities[j],
+                ),
+                10,
+            )
+            for i in range(self.number_entities)
+            for j in range(i + 1, self.number_entities)
+        ]
+
+        for (comparison, score) in comparisons:
+            ComparisonCriteriaScoreFactory(
+                comparison=comparison,
+                criteria="criteria1",
+                score=score,
+            )
+
+        self.client = APIClient()
+
+    @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
+    def test_delete_all_individual_scores_with_online_heuristic_update(
+        self,
+    ):
+        call_command("ml_train")
+
+        self.assertEqual(ContributorRatingCriteriaScore.objects.count(), self.number_entities)
+        self.assertEqual(
+            EntityCriteriaScore.objects.filter(score_mode="default").count(), self.number_entities
+        )
+
+        self.client.force_authenticate(self.user1)
+
+        for i in range(self.number_entities):
+            for j in range(i + 1, self.number_entities):
+                print(i,j,self.entities[i])
+                resp = self.client.delete(
+                    f"/users/me/comparisons/{self.poll.name}/{self.entities[i].uid}/{self.entities[j].uid}/",
+                )
+
+                # self.assertEqual(resp.status_code, 204, resp.content)
+            # call_command("ml_train")
+ 
+
+        # 5 indiv score with 0.0 score
+        self.assertEqual(
+            ContributorRatingCriteriaScore.objects.filter(
+                contributor_rating__user=self.user1
+            ).count(),
+            5,
+        )
+        for (
+            contributorRatingCriteriaScore
+        ) in ContributorRatingCriteriaScore.objects.filter(
+            contributor_rating__user=self.user1
+        ).all():
+            self.assertEqual(contributorRatingCriteriaScore.score, 0.0)
+
+        # # no new global scores = 5
         self.assertEqual(
             EntityCriteriaScore.objects.filter(score_mode="default").count(), 5
         )
