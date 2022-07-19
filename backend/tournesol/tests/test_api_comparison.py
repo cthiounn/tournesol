@@ -1,4 +1,5 @@
 import datetime
+import time
 from copy import deepcopy
 from unittest.mock import patch
 
@@ -1678,22 +1679,22 @@ class ExpertComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
 
         self.assertEqual(resp.status_code, 204, resp.content)
         resp = self.client.delete(
-            f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[2].uid}/",
-        )
-
-        self.assertEqual(resp.status_code, 204, resp.content)
-        resp = self.client.delete(
-            f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[3].uid}/",
-        )
-
-        self.assertEqual(resp.status_code, 204, resp.content)
-        resp = self.client.delete(
-            f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[4].uid}/",
-        )
-
-        self.assertEqual(resp.status_code, 204, resp.content)
-        resp = self.client.delete(
             f"/users/me/comparisons/{self.poll.name}/{self.entities[1].uid}/{self.entities[2].uid}/",
+        )
+
+        self.assertEqual(resp.status_code, 204, resp.content)
+        resp = self.client.delete(
+            f"/users/me/comparisons/{self.poll.name}/{self.entities[2].uid}/{self.entities[3].uid}/",
+        )
+
+        self.assertEqual(resp.status_code, 204, resp.content)
+        resp = self.client.delete(
+            f"/users/me/comparisons/{self.poll.name}/{self.entities[3].uid}/{self.entities[4].uid}/",
+        )
+
+        self.assertEqual(resp.status_code, 204, resp.content)
+        resp = self.client.delete(
+            f"/users/me/comparisons/{self.poll.name}/{self.entities[4].uid}/{self.entities[0].uid}/",
         )
 
         self.assertEqual(resp.status_code, 204, resp.content)
@@ -1830,23 +1831,26 @@ class MyriadOfComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
     ):
         call_command("ml_train")
 
-        self.assertEqual(ContributorRatingCriteriaScore.objects.count(), self.number_entities)
         self.assertEqual(
-            EntityCriteriaScore.objects.filter(score_mode="default").count(), self.number_entities
+            ContributorRatingCriteriaScore.objects.count(), self.number_entities
+        )
+        self.assertEqual(
+            EntityCriteriaScore.objects.filter(score_mode="default").count(),
+            self.number_entities,
         )
 
         self.client.force_authenticate(self.user1)
 
         for i in range(self.number_entities):
             for j in range(i + 1, self.number_entities):
-                print(i,j,self.entities[i])
+                print(i, j, self.entities[i])
+                time.sleep(1)
                 resp = self.client.delete(
                     f"/users/me/comparisons/{self.poll.name}/{self.entities[i].uid}/{self.entities[j].uid}/",
                 )
 
                 # self.assertEqual(resp.status_code, 204, resp.content)
             # call_command("ml_train")
- 
 
         # 5 indiv score with 0.0 score
         self.assertEqual(
