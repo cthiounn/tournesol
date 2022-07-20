@@ -193,7 +193,8 @@ def _run_online_heuristics_for_criterion(
         and we apply poll level scaling at global scores
 
     """
-    # print("START", ml_input.get_indiv_score(user_id=user_id),sum(ml_input.get_indiv_score(user_id=user_id)["raw_score"]))
+    # print("START", ml_input.get_indiv_score(user_id=user_id),
+    # sum(ml_input.get_indiv_score(user_id=user_id)["raw_score"]))
     poll = Poll.objects.get(pk=poll_pk)
     all_comparison_of_user_for_criteria = ml_input.get_comparisons(
         criteria=criteria, user_id=user_id
