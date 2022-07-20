@@ -681,20 +681,19 @@ class MyriadOfComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
         for i in range(self.number_entities):
             for j in range(i + 1, self.number_entities):
                 print(i, j, self.entities[i])
-                time.sleep(0.1)
+                time.sleep(0.5)
                 resp = self.client.delete(
                     f"/users/me/comparisons/{self.poll.name}/{self.entities[i].uid}/{self.entities[j].uid}/",
                 )
-
-                # self.assertEqual(resp.status_code, 204, resp.content)
+                self.assertEqual(resp.status_code, 204, resp.content)
             # call_command("ml_train")
 
-        # 5 indiv score with 0.0 score
+        # self.number_entities indiv score with 0.0 score
         self.assertEqual(
             ContributorRatingCriteriaScore.objects.filter(
                 contributor_rating__user=self.user1
             ).count(),
-            5,
+            self.number_entities,
         )
         for (
             contributorRatingCriteriaScore
@@ -703,7 +702,8 @@ class MyriadOfComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
         ).all():
             self.assertEqual(contributorRatingCriteriaScore.score, 0.0)
 
-        # # no new global scores = 5
+        # # no new global scores = self.number_entities
         self.assertEqual(
-            EntityCriteriaScore.objects.filter(score_mode="default").count(), 5
+            EntityCriteriaScore.objects.filter(score_mode="default").count(),
+            self.number_entities,
         )
