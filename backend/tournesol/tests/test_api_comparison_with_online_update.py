@@ -722,9 +722,10 @@ class MyriadOfComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
 
     @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
     @patch("tournesol.throttling.BurstUserRateThrottle.get_rate")
-    def test_delete_all_individual_scores_with_online_heuristic_update(self, mock):
-        mock.return_value = "10000/min"
-        print(mock.return_value)
+    @patch("tournesol.throttling.SustainedUserRateThrottle.get_rate")
+    def test_delete_all_individual_scores_with_online_heuristic_update(self, mock1,mock2):
+        mock1.return_value = "10000/min"
+        mock2.return_value = "360000/hour"
         call_command("ml_train")
 
         self.assertEqual(
