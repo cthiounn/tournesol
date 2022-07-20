@@ -115,7 +115,7 @@ def get_new_scores_from_online_update(
             theta_star_b = compute_new_individual_score_with_heuristics_update(
                 id_entity_b, L_tilde, dot_product
             )
-
+        # print(L_tilde-dot_product["raw_score"])
         previous_individual_raw_scores.loc[
             previous_individual_raw_scores.index == id_entity_a, "raw_score"
         ] = theta_star_a
@@ -193,8 +193,7 @@ def _run_online_heuristics_for_criterion(
         and we apply poll level scaling at global scores
 
     """
-    # print("START", ml_input.get_indiv_score(user_id=user_id)
-    # ,sum(ml_input.get_indiv_score(user_id=user_id)["raw_score"]))
+    # print("START", ml_input.get_indiv_score(user_id=user_id),sum(ml_input.get_indiv_score(user_id=user_id)["raw_score"]))
     poll = Poll.objects.get(pk=poll_pk)
     all_comparison_of_user_for_criteria = ml_input.get_comparisons(
         criteria=criteria, user_id=user_id

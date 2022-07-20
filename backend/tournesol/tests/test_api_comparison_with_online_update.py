@@ -1,4 +1,4 @@
-import time
+from unittest.mock import patch
 
 from django.core.management import call_command
 from django.test import TransactionTestCase, override_settings
@@ -297,6 +297,64 @@ class AdvancedComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
             )
 
         self.client = APIClient()
+
+    @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
+    def test_insert_all_individual_scores_with_online_heuristic_update(
+        self,
+    ):
+        call_command("ml_train")
+
+        self.assertEqual(ContributorRatingCriteriaScore.objects.count(), 7)
+        self.assertEqual(
+            EntityCriteriaScore.objects.filter(score_mode="default").count(), 5
+        )
+
+        self.client.force_authenticate(self.user2)
+        resp = self.client.post(
+            f"/users/me/comparisons/{self.poll.name}",
+            data={
+                "entity_a": {"uid": self.entities[1].uid},
+                "entity_b": {"uid": self.entities[2].uid},
+                "criteria_scores": [{"criteria": "criteria1", "score": 10}],
+            },
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, 201, resp.content)
+        resp = self.client.post(
+            f"/users/me/comparisons/{self.poll.name}",
+            data={
+                "entity_a": {"uid": self.entities[2].uid},
+                "entity_b": {"uid": self.entities[3].uid},
+                "criteria_scores": [{"criteria": "criteria1", "score": 10}],
+            },
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, 201, resp.content)
+        resp = self.client.post(
+            f"/users/me/comparisons/{self.poll.name}",
+            data={
+                "entity_a": {"uid": self.entities[3].uid},
+                "entity_b": {"uid": self.entities[4].uid},
+                "criteria_scores": [{"criteria": "criteria1", "score": 10}],
+            },
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, 201, resp.content)
+        resp = self.client.post(
+            f"/users/me/comparisons/{self.poll.name}",
+            data={
+                "entity_a": {"uid": self.entities[4].uid},
+                "entity_b": {"uid": self.entities[0].uid},
+                "criteria_scores": [{"criteria": "criteria1", "score": 10}],
+            },
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, 201, resp.content)
+        call_command("ml_train")
 
     @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
     def test_delete_all_individual_scores_with_online_heuristic_update(
@@ -663,9 +721,9 @@ class MyriadOfComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
         self.client = APIClient()
 
     @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
-    def test_delete_all_individual_scores_with_online_heuristic_update(
-        self,
-    ):
+    @patch("tournesol.throttling.BurstUserRateThrottle")
+    def test_delete_all_individual_scores_with_online_heuristic_update(self, mock):
+        mock.return_value = "10000/min"
         call_command("ml_train")
 
         self.assertEqual(
@@ -681,7 +739,6 @@ class MyriadOfComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
         for i in range(self.number_entities):
             for j in range(i + 1, self.number_entities):
                 print(i, j, self.entities[i])
-                time.sleep(0.5)
                 resp = self.client.delete(
                     f"/users/me/comparisons/{self.poll.name}/{self.entities[i].uid}/{self.entities[j].uid}/",
                 )
