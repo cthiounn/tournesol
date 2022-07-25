@@ -89,6 +89,7 @@ def get_new_scores_from_online_update(
         Kaa_np = np.array(k.sum(axis=1) + ALPHA)
         L_tilde = L / Kaa_np
 
+        print("DEBUG k Kaa_np", k, Kaa_np)
         U_ab = -k / Kaa_np[:, None]
         U_ab = U_ab.fillna(0)
 
@@ -101,7 +102,12 @@ def get_new_scores_from_online_update(
         ].copy()
 
         dot_product = U_ab.dot(previous_individual_raw_scores)
+        print("U_ab,prev_scores", U_ab, previous_individual_raw_scores)
+        print("L_tilde", "dot_product", L_tilde, dot_product)
 
+        # sub_U_ab = U_ab.loc[(id_entity_a, id_entity_b), (id_entity_a, id_entity_b)]
+        # L_tilde_ab = L_tilde.loc[[id_entity_a, id_entity_b]]
+        # print(sub_U_ab,L_tilde_ab)
         if dont_compute_a:
             theta_star_a = 0.0
         else:
@@ -115,7 +121,7 @@ def get_new_scores_from_online_update(
             theta_star_b = compute_new_individual_score_with_heuristics_update(
                 id_entity_b, L_tilde, dot_product
             )
-        # print(L_tilde-dot_product["raw_score"])
+        print("new_scores_after_update", L_tilde - dot_product["raw_score"])
         previous_individual_raw_scores.loc[
             previous_individual_raw_scores.index == id_entity_a, "raw_score"
         ] = theta_star_a
@@ -193,8 +199,11 @@ def _run_online_heuristics_for_criterion(
         and we apply poll level scaling at global scores
 
     """
-    # print("START", ml_input.get_indiv_score(user_id=user_id),
-    # sum(ml_input.get_indiv_score(user_id=user_id)["raw_score"]))
+    print(
+        "START",
+        ml_input.get_indiv_score(user_id=user_id),
+        sum(ml_input.get_indiv_score(user_id=user_id)["raw_score"]),
+    )
     poll = Poll.objects.get(pk=poll_pk)
     all_comparison_of_user_for_criteria = ml_input.get_comparisons(
         criteria=criteria, user_id=user_id
@@ -266,7 +275,7 @@ def _run_online_heuristics_for_criterion(
             user_id, entity_id_b, theta_star_b, delta_star_b, score_to_save
         )
         score_to_save["criteria"] = criteria
-        # print("TO_SAVE", score_to_save)
+        print("TO_SAVE", score_to_save)
         print(sum(score_to_save["raw_score"]))
         save_contributor_scores(
             poll,
