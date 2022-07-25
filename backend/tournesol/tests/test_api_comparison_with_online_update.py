@@ -319,9 +319,8 @@ class AdvancedComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
             },
             format="json",
         )
-        call_command("ml_train")
+        call_command("ml_train", "--unsave")
 
-        return 
         self.assertEqual(resp.status_code, 201, resp.content)
         resp = self.client.post(
             f"/users/me/comparisons/{self.poll.name}",
@@ -333,7 +332,7 @@ class AdvancedComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
             format="json",
         )
 
-        # call_command("ml_train")
+        call_command("ml_train", "--unsave")
         self.assertEqual(resp.status_code, 201, resp.content)
         resp = self.client.post(
             f"/users/me/comparisons/{self.poll.name}",
@@ -345,7 +344,7 @@ class AdvancedComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
             format="json",
         )
 
-        # call_command("ml_train")
+        call_command("ml_train", "--unsave")
         self.assertEqual(resp.status_code, 201, resp.content)
         resp = self.client.post(
             f"/users/me/comparisons/{self.poll.name}",
@@ -358,7 +357,7 @@ class AdvancedComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
         )
 
         self.assertEqual(resp.status_code, 201, resp.content)
-        call_command("ml_train")
+        call_command("ml_train", "--unsave")
 
     @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
     def test_delete_all_individual_scores_with_online_heuristic_update(
@@ -377,26 +376,32 @@ class AdvancedComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
         )
 
         self.assertEqual(resp.status_code, 204, resp.content)
+        call_command("ml_train", "--unsave")
+
         resp = self.client.delete(
             f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[2].uid}/",
         )
 
         self.assertEqual(resp.status_code, 204, resp.content)
+        call_command("ml_train", "--unsave")
         resp = self.client.delete(
             f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[3].uid}/",
         )
 
         self.assertEqual(resp.status_code, 204, resp.content)
+        call_command("ml_train", "--unsave")
         resp = self.client.delete(
             f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[4].uid}/",
         )
 
         self.assertEqual(resp.status_code, 204, resp.content)
+        call_command("ml_train", "--unsave")
         resp = self.client.delete(
             f"/users/me/comparisons/{self.poll.name}/{self.entities[1].uid}/{self.entities[2].uid}/",
         )
 
         self.assertEqual(resp.status_code, 204, resp.content)
+        call_command("ml_train", "--unsave")
         # 5 indiv score with 0.0 score
         self.assertEqual(
             ContributorRatingCriteriaScore.objects.filter(
@@ -435,8 +440,8 @@ class AdvancedComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
             },
             format="json",
         )
-        call_command("ml_train")
         self.assertEqual(resp.status_code, 200, resp.content)
+        call_command("ml_train", "--unsave")
         resp = self.client.put(
             f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[2].uid}/",
             data={
@@ -446,7 +451,7 @@ class AdvancedComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
         )
 
         self.assertEqual(resp.status_code, 200, resp.content)
-
+        call_command("ml_train", "--unsave")
         resp = self.client.put(
             f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[3].uid}/",
             data={
@@ -456,6 +461,7 @@ class AdvancedComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
         )
 
         self.assertEqual(resp.status_code, 200, resp.content)
+        call_command("ml_train", "--unsave")
         resp = self.client.put(
             f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[4].uid}/",
             data={
@@ -465,6 +471,7 @@ class AdvancedComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
         )
 
         self.assertEqual(resp.status_code, 200, resp.content)
+        call_command("ml_train", "--unsave")
 
         resp = self.client.put(
             f"/users/me/comparisons/{self.poll.name}/{self.entities[1].uid}/{self.entities[2].uid}/",
@@ -482,6 +489,7 @@ class AdvancedComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
         )
 
         self.assertEqual(resp.status_code, 200, resp.content)
+        call_command("ml_train", "--unsave")
         # 5 indiv score with 0.0 score
         self.assertEqual(
             ContributorRatingCriteriaScore.objects.filter(
@@ -727,7 +735,9 @@ class MyriadOfComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
     @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
     @patch("tournesol.throttling.BurstUserRateThrottle.get_rate")
     @patch("tournesol.throttling.SustainedUserRateThrottle.get_rate")
-    def test_delete_all_individual_scores_with_online_heuristic_update(self, mock1,mock2):
+    def test_delete_all_individual_scores_with_online_heuristic_update(
+        self, mock1, mock2
+    ):
         mock1.return_value = "10000/min"
         mock2.return_value = "360000/hour"
         call_command("ml_train")
@@ -749,7 +759,7 @@ class MyriadOfComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
                     f"/users/me/comparisons/{self.poll.name}/{self.entities[i].uid}/{self.entities[j].uid}/",
                 )
                 self.assertEqual(resp.status_code, 204, resp.content)
-            # call_command("ml_train")
+                call_command("ml_train", "--unsave")
 
         # self.number_entities indiv score with 0.0 score
         self.assertEqual(
@@ -770,3 +780,54 @@ class MyriadOfComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
             EntityCriteriaScore.objects.filter(score_mode="default").count(),
             self.number_entities,
         )
+
+
+class InsertMyriadOfComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
+    def setUp(self):
+        self.poll = PollFactory(algorithm=ALGORITHM_MEHESTAN)
+        CriteriaRankFactory(poll=self.poll, criteria__name="criteria1")
+
+        self.number_entities = 100
+        self.entities = VideoFactory.create_batch(self.number_entities)
+        (
+            self.user1,
+            self.user2,
+        ) = UserFactory.create_batch(2)
+
+        self.client = APIClient()
+
+    @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
+    @patch("tournesol.throttling.BurstUserRateThrottle.get_rate")
+    @patch("tournesol.throttling.SustainedUserRateThrottle.get_rate")
+    def test_insert_all_individual_scores_with_online_heuristic_update(
+        self, mock1, mock2
+    ):
+        mock1.return_value = "10000/min"
+        mock2.return_value = "360000/hour"
+        #call_command("ml_train")
+
+        self.assertEqual(
+            ContributorRatingCriteriaScore.objects.count(), 0
+        )
+        self.assertEqual(
+            EntityCriteriaScore.objects.filter(score_mode="default").count(),
+            0,
+        )
+
+        self.client.force_authenticate(self.user1)
+
+        for i in range(self.number_entities):
+            for j in range(i + 1, self.number_entities):
+                print(i, j, self.entities[i])
+                resp = self.client.post(
+                    f"/users/me/comparisons/{self.poll.name}",
+                    data={
+                        "entity_a": {"uid": self.entities[i].uid},
+                        "entity_b": {"uid": self.entities[j].uid},
+                        "criteria_scores": [{"criteria": "criteria1", "score": 10}],
+                    },
+                    format="json",
+                )
+                self.assertEqual(resp.status_code, 201, resp.content)
+                call_command("ml_train", "--unsave")
+

@@ -37,6 +37,7 @@ def get_new_scores_from_online_update(
     id_entity_b: str,
     previous_individual_raw_scores: pd.DataFrame,
 ) -> Tuple[float]:
+    print(id_entity_a, id_entity_b)
     scores = all_comparison_user_for_criteria[["entity_a", "entity_b", "score"]]
     all_entities = set(scores["entity_a"]) | set(scores["entity_b"])
     all_scores_values = set(scores["score"])
@@ -89,7 +90,7 @@ def get_new_scores_from_online_update(
         Kaa_np = np.array(k.sum(axis=1) + ALPHA)
         L_tilde = L / Kaa_np
 
-        print("DEBUG k Kaa_np", k, Kaa_np)
+        # print("DEBUG k Kaa_np", k, Kaa_np)
         U_ab = -k / Kaa_np[:, None]
         U_ab = U_ab.fillna(0)
 
@@ -102,8 +103,8 @@ def get_new_scores_from_online_update(
         ].copy()
 
         dot_product = U_ab.dot(previous_individual_raw_scores)
-        print("U_ab,prev_scores", U_ab, previous_individual_raw_scores)
-        print("L_tilde", "dot_product", L_tilde, dot_product)
+        # print("U_ab,prev_scores", U_ab, previous_individual_raw_scores)
+        # print("L_tilde", "dot_product", L_tilde, dot_product)
 
         # sub_U_ab = U_ab.loc[(id_entity_a, id_entity_b), (id_entity_a, id_entity_b)]
         # L_tilde_ab = L_tilde.loc[[id_entity_a, id_entity_b]]
@@ -121,7 +122,11 @@ def get_new_scores_from_online_update(
             theta_star_b = compute_new_individual_score_with_heuristics_update(
                 id_entity_b, L_tilde, dot_product
             )
-        print("new_scores_after_update", L_tilde - dot_product["raw_score"])
+        print(
+            "new_scores_after_update",
+            L_tilde - dot_product["raw_score"],
+            sum(L_tilde - dot_product["raw_score"]),
+        )
         previous_individual_raw_scores.loc[
             previous_individual_raw_scores.index == id_entity_a, "raw_score"
         ] = theta_star_a
@@ -257,7 +262,6 @@ def _run_online_heuristics_for_criterion(
             criteria, ml_input, new_data_a, new_data_b, user_id
         )
     )
-
     if not partial_scaled_scores_for_ab.empty:
         calculate_and_save_global_scores_in_all_score_mode(
             criteria, poll, partial_scaled_scores_for_ab
@@ -337,13 +341,22 @@ def apply_and_return_scaling_on_individual_scores_online_heuristics(
         else:
             all_indiv_score = pd.concat([all_indiv_score_a, all_indiv_score_b])
 
+    if all_indiv_score.empty:
+        all_indiv_score = pd.DataFrame(
+            {
+                "user_id": pd.Series(dtype="int64"),
+                "entity_id": pd.Series(dtype="int64"),
+                "raw_score": pd.Series(dtype="float64"),
+                "raw_uncertainty": pd.Series(dtype="float64"),
+            }
+        )
+
     all_indiv_score = add_or_update_df_indiv_score(
         user_id, entity_id_a, theta_star_a, delta_star_a, all_indiv_score
     )
     all_indiv_score = add_or_update_df_indiv_score(
         user_id, entity_id_b, theta_star_b, delta_star_b, all_indiv_score
     )
-
     df = all_indiv_score.merge(
         ml_input.get_ratings_properties(), how="inner", on=["user_id", "entity_id"]
     )
