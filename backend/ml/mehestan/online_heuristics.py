@@ -80,7 +80,9 @@ def get_new_scores_from_online_update(
     if dont_compute_a and dont_compute_b:
         return (0, 0, 0, 0)
     else:
-        r_tilde = r / (1.0 + R_MAX)
+        # don't compute all comparison but only a and b
+        r_ab = r.loc[[id_entity_a, id_entity_b]]
+        r_tilde = r_ab / (1.0 + R_MAX)
         r_tilde2 = r_tilde**2
         # r.loc[a:b] is negative when a is prefered to b.
         l = -1.0 * r_tilde / np.sqrt(1.0 - r_tilde2)  # noqa: E741
@@ -103,12 +105,7 @@ def get_new_scores_from_online_update(
         ].copy()
 
         dot_product = U_ab.dot(previous_individual_raw_scores)
-        # print("U_ab,prev_scores", U_ab, previous_individual_raw_scores)
-        # print("L_tilde", "dot_product", L_tilde, dot_product)
 
-        # sub_U_ab = U_ab.loc[(id_entity_a, id_entity_b), (id_entity_a, id_entity_b)]
-        # L_tilde_ab = L_tilde.loc[[id_entity_a, id_entity_b]]
-        # print(sub_U_ab,L_tilde_ab)
         if dont_compute_a:
             theta_star_a = 0.0
         else:
@@ -279,7 +276,8 @@ def _run_online_heuristics_for_criterion(
             user_id, entity_id_b, theta_star_b, delta_star_b, score_to_save
         )
         score_to_save["criteria"] = criteria
-        print("TO_SAVE", score_to_save)
+        print(score_to_save)
+        print("TO_SAVE", score_to_save.loc[score_to_save.entity_id.isin(range(12, 20))])
         print(sum(score_to_save["raw_score"]))
         save_contributor_scores(
             poll,
