@@ -689,84 +689,84 @@ class ExpertComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
         )
 
 
-class MyriadOfComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
-    def setUp(self):
-        self.poll = PollFactory(algorithm=ALGORITHM_MEHESTAN)
-        CriteriaRankFactory(poll=self.poll, criteria__name="criteria1")
+# class MyriadOfComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
+#     def setUp(self):
+#         self.poll = PollFactory(algorithm=ALGORITHM_MEHESTAN)
+#         CriteriaRankFactory(poll=self.poll, criteria__name="criteria1")
 
-        self.number_entities = 100
-        self.entities = VideoFactory.create_batch(self.number_entities)
-        (
-            self.user1,
-            self.user2,
-        ) = UserFactory.create_batch(2)
+#         self.number_entities = 100
+#         self.entities = VideoFactory.create_batch(self.number_entities)
+#         (
+#             self.user1,
+#             self.user2,
+#         ) = UserFactory.create_batch(2)
 
-        comparisons = [
-            (
-                ComparisonFactory(
-                    poll=self.poll,
-                    user=self.user1,
-                    entity_1=self.entities[i],
-                    entity_2=self.entities[j],
-                ),
-                10,
-            )
-            for i in range(self.number_entities)
-            for j in range(i + 1, self.number_entities)
-        ]
+#         comparisons = [
+#             (
+#                 ComparisonFactory(
+#                     poll=self.poll,
+#                     user=self.user1,
+#                     entity_1=self.entities[i],
+#                     entity_2=self.entities[j],
+#                 ),
+#                 10,
+#             )
+#             for i in range(self.number_entities)
+#             for j in range(i + 1, self.number_entities)
+#         ]
 
-        for (comparison, score) in comparisons:
-            ComparisonCriteriaScoreFactory(
-                comparison=comparison,
-                criteria="criteria1",
-                score=score,
-            )
+#         for (comparison, score) in comparisons:
+#             ComparisonCriteriaScoreFactory(
+#                 comparison=comparison,
+#                 criteria="criteria1",
+#                 score=score,
+#             )
 
-        self.client = APIClient()
+#         self.client = APIClient()
 
-    @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
-    @patch("tournesol.throttling.BurstUserRateThrottle.get_rate")
-    @patch("tournesol.throttling.SustainedUserRateThrottle.get_rate")
-    def test_delete_all_individual_scores_with_online_heuristic_update(self, mock1,mock2):
-        mock1.return_value = "10000/min"
-        mock2.return_value = "360000/hour"
-        call_command("ml_train")
+#     @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
+#     @patch("tournesol.throttling.BurstUserRateThrottle.get_rate")
+#     @patch("tournesol.throttling.SustainedUserRateThrottle.get_rate")
+#     def test_delete_all_individual_scores_with_online_heuristic_update(self, mock1,mock2):
+#         mock1.return_value = "10000/min"
+#         mock2.return_value = "360000/hour"
+#         call_command("ml_train")
 
-        self.assertEqual(
-            ContributorRatingCriteriaScore.objects.count(), self.number_entities
-        )
-        self.assertEqual(
-            EntityCriteriaScore.objects.filter(score_mode="default").count(),
-            self.number_entities,
-        )
+#         self.assertEqual(
+#             ContributorRatingCriteriaScore.objects.count(), self.number_entities
+#         )
+#         self.assertEqual(
+#             EntityCriteriaScore.objects.filter(score_mode="default").count(),
+#             self.number_entities,
+#         )
 
-        self.client.force_authenticate(self.user1)
+#         self.client.force_authenticate(self.user1)
 
-        for i in range(self.number_entities):
-            for j in range(i + 1, self.number_entities):
-                print(i, j, self.entities[i])
-                resp = self.client.delete(
-                    f"/users/me/comparisons/{self.poll.name}/{self.entities[i].uid}/{self.entities[j].uid}/",
-                )
-                self.assertEqual(resp.status_code, 204, resp.content)
-            # call_command("ml_train")
+#         for i in range(self.number_entities):
+#             for j in range(i + 1, self.number_entities):
+#                 print(i, j, self.entities[i])
+#                 resp = self.client.delete(
+#                     f"/users/me/comparisons/{self.poll.name}/{self.entities[i].uid}/{self.entities[j].uid}/",
+#                 )
+#                 self.assertEqual(resp.status_code, 204, resp.content)
+#             # call_command("ml_train")
 
-        # self.number_entities indiv score with 0.0 score
-        self.assertEqual(
-            ContributorRatingCriteriaScore.objects.filter(
-                contributor_rating__user=self.user1
-            ).count(),
-            self.number_entities,
-        )
-        for (
-            contributorRatingCriteriaScore
-        ) in ContributorRatingCriteriaScore.objects.filter(
-            contributor_rating__user=self.user1
-        ).all():
-            self.assertEqual(contributorRatingCriteriaScore.score, 0.0)
+#         # self.number_entities indiv score with 0.0 score
+#         self.assertEqual(
+#             ContributorRatingCriteriaScore.objects.filter(
+#                 contributor_rating__user=self.user1
+#             ).count(),
+#             self.number_entities,
+#         )
+#         for (
+#             contributorRatingCriteriaScore
+#         ) in ContributorRatingCriteriaScore.objects.filter(
+#             contributor_rating__user=self.user1
+#         ).all():
+#             self.assertEqual(contributorRatingCriteriaScore.score, 0.0)
 
-        # # no new global scores = self.number_entities
-        self.assertEqual(
-            EntityCriteriaScore.objects.filter(score_mode="default").count(),
-            self.number_entities,
-        )
+#         # # no new global scores = self.number_entities
+#         self.assertEqual(
+#             EntityCriteriaScore.objects.filter(score_mode="default").count(),
+#             self.number_entities,
+#         )
