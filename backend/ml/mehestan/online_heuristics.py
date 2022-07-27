@@ -37,12 +37,16 @@ def get_new_scores_from_online_update(
     set_of_entity_to_update: Set[str],
     previous_individual_raw_scores: pd.DataFrame,
 ) -> Tuple[pd.DataFrame]:
+    print("ENTITIES",set_of_entity_to_update)
+    new_raw_scores= previous_individual_raw_scores
+    new_raw_uncertainties = pd.DataFrame()
+
     scores = all_comparison_user_for_criteria[["entity_a", "entity_b", "score"]]
     all_entities = set(scores["entity_a"]) | set(scores["entity_b"])
-    all_scores_values = set(scores["score"])
-    # Null Matrix case
-    if len(all_scores_values) == 1 and np.isnan(all_scores_values.pop()):
-        return (0, 0, 0, 0)
+    # all_scores_values = set(scores["score"])
+    # # Null Matrix case
+    # if len(all_scores_values) == 1 and np.isnan(all_scores_values.pop()):
+    #     return (0, 0, 0, 0)
     scores_sym = pd.concat(
         [
             scores,
@@ -58,114 +62,50 @@ def get_new_scores_from_online_update(
 
     # "Comparison tensor": matrix with all comparisons, values in [-R_MAX, R_MAX]
     r = scores_sym.pivot(index="entity_a", columns="entity_b", values="score")
-    dont_compute_a, dont_compute_b = False, False
-    if (
-        r.loc[
-            id_entity_a,
-        ]
-        .dropna()
-        .empty
-    ):
-        dont_compute_a = True
-    if (
-        r.loc[
-            id_entity_b,
-        ]
-        .dropna()
-        .empty
-    ):
-        dont_compute_b = True
 
-    if dont_compute_a and dont_compute_b:
-        return (0, 0, 0, 0)
-    else:
-        r_tilde = r / (1.0 + R_MAX)
-        r_tilde2 = r_tilde**2
-        # r.loc[a:b] is negative when a is prefered to b.
-        l = -1.0 * r_tilde / np.sqrt(1.0 - r_tilde2)  # noqa: E741
-        k = (1.0 - r_tilde2) ** 3
+    r_set=r.loc[list(set_of_entity_to_update)]
+    r_tilde = r_set / (1.0 + R_MAX)
+    r_tilde2 = r_tilde**2
+    # r.loc[a:b] is negative when a is prefered to b.
+    l = -1.0 * r_tilde / np.sqrt(1.0 - r_tilde2)  # noqa: E741
+    k = (1.0 - r_tilde2) ** 3
 
-        L = k.mul(l).sum(axis=1)
-        Kaa_np = np.array(k.sum(axis=1) + ALPHA)
-        L_tilde = L / Kaa_np
+    L = k.mul(l).sum(axis=1)
+    Kaa_np = np.array(k.sum(axis=1) + ALPHA)
 
-        U_ab = -k / Kaa_np[:, None]
-        U_ab = U_ab.fillna(0)
+    # to compute dot_product, we need vector of previous_scores to be complete
+    for entity in all_entities:
+        if not new_raw_scores.index.isin([entity]).any():
+            new_raw_scores.loc[entity] = 0.0
+    new_raw_scores = new_raw_scores[
+        new_raw_scores.index.isin(all_entities)
+    ].copy()
 
-        # to compute dot_product, we need vector of previous_scores to be complete
-        for entity in all_entities:
-            if not previous_individual_raw_scores.index.isin([entity]).any():
-                previous_individual_raw_scores.loc[entity] = 0.0
-        previous_individual_raw_scores = previous_individual_raw_scores[
-            previous_individual_raw_scores.index.isin(all_entities)
-        ].copy()
+    new_raw_scores=((L-(k.fillna(0).dot(new_raw_scores))["raw_score"])/Kaa_np).to_frame(name="raw_score")
+    
+    # Compute uncertainties
+    scores_series = previous_individual_raw_scores.squeeze()
+    scores_np = scores_series.to_numpy()
+    theta_star_ab = pd.DataFrame(
+        np.subtract.outer(scores_np, scores_np),
+        index=scores_series.index,
+        columns=scores_series.index,
+    )
 
-        dot_product = U_ab.dot(previous_individual_raw_scores)
+    K_diag = pd.DataFrame(
+        data=np.diag(k.sum(axis=1) + ALPHA),
+        index=k.index,
+        columns=k.index,
+    )
 
-        if dont_compute_a:
-            theta_star_a = 0.0
-        else:
-            theta_star_a = compute_new_individual_score_with_heuristics_update(
-                id_entity_a, L_tilde, dot_product
-            )
+    sigma2 = (1.0 + (np.nansum(k * (l - theta_star_ab) ** 2) / 2)) / len(scores)
 
-        if dont_compute_b:
-            theta_star_b = 0.0
-        else:
-            theta_star_b = compute_new_individual_score_with_heuristics_update(
-                id_entity_b, L_tilde, dot_product
-            )
-
-        previous_individual_raw_scores.loc[
-            previous_individual_raw_scores.index == id_entity_a, "raw_score"
-        ] = theta_star_a
-        previous_individual_raw_scores.loc[
-            previous_individual_raw_scores.index == id_entity_b, "raw_score"
-        ] = theta_star_b
-
-        # Compute uncertainties
-        scores_series = previous_individual_raw_scores.squeeze()
-        scores_np = scores_series.to_numpy()
-        theta_star_ab = pd.DataFrame(
-            np.subtract.outer(scores_np, scores_np),
-            index=scores_series.index,
-            columns=scores_series.index,
-        )
-
-        K_diag = pd.DataFrame(
-            data=np.diag(k.sum(axis=1) + ALPHA),
-            index=k.index,
-            columns=k.index,
-        )
-
-        sigma2 = (1.0 + (np.nansum(k * (l - theta_star_ab) ** 2) / 2)) / len(scores)
-
-        delta_star = pd.Series(
-            np.sqrt(sigma2) / np.sqrt(np.diag(K_diag)), index=K_diag.index
-        )
-        if dont_compute_a:
-            delta_star_a = 0.0
-        else:
-            delta_star_a = delta_star[id_entity_a]
-        if dont_compute_b:
-            delta_star_b = 0.0
-        else:
-            delta_star_b = delta_star[id_entity_b]
+    delta_star = pd.Series(
+        np.sqrt(sigma2) / np.sqrt(np.diag(K_diag)), index=K_diag.index
+    )
+    new_raw_uncertainties=delta_star.to_frame(name="raw_uncertainty")
 
     return new_raw_scores, new_raw_uncertainties
-
-
-def compute_new_individual_score_with_heuristics_update(
-    id_entity_a, L_tilde, dot_product
-):
-    L_tilde_a = L_tilde[id_entity_a]
-    theta_star_a = (
-        (L_tilde_a - dot_product[dot_product.index == id_entity_a].values)
-        .squeeze()[()]
-        .item()
-    )
-    return theta_star_a
-
 
 def _run_online_heuristics_for_criterion(
     criteria: str,
@@ -253,6 +193,18 @@ def _run_online_heuristics_for_criterion(
     # we need to recompute global score for a and b
     # in order to so, we need all individual scaled score concerning a and b
     # we will get those and inject the new raw score before scaling for {a|b}/criteria/user_id
+    theta_star_a=new_raw_scores.loc[
+            new_raw_scores.index == entity_id_a, "raw_score"
+        ]
+    delta_star_a=new_raw_uncertainties.loc[
+            new_raw_uncertainties.index == entity_id_a, "raw_uncertainty"
+        ]
+    theta_star_b=new_raw_scores.loc[
+            new_raw_scores.index == entity_id_b, "raw_score"
+        ]
+    delta_star_b=new_raw_uncertainties.loc[
+            new_raw_uncertainties.index == entity_id_b, "raw_uncertainty"
+        ]
     new_data_a = (entity_id_a, theta_star_a, delta_star_a)
     new_data_b = (entity_id_b, theta_star_b, delta_star_b)
 
