@@ -10,11 +10,7 @@ from django import db
 
 from core.models import User
 from ml.inputs import MlInput, MlInputFromDb
-from ml.outputs import (  # insert_or_update_contributor_score,
-    save_contributor_scores,
-    save_entity_scores,
-    save_tournesol_scores,
-)
+from ml.outputs import save_contributor_scores, save_entity_scores, save_tournesol_scores
 from tournesol.models import Entity, Poll
 from tournesol.models.entity_score import ScoreMode
 from tournesol.utils.constants import COMPARISON_MAX
@@ -37,8 +33,8 @@ def get_new_scores_from_online_update(
     set_of_entity_to_update: Set[str],
     previous_individual_raw_scores: pd.DataFrame,
 ) -> Tuple[pd.DataFrame]:
-    print("ENTITIES",set_of_entity_to_update)
-    new_raw_scores= previous_individual_raw_scores
+    print("ENTITIES", set_of_entity_to_update)
+    new_raw_scores = previous_individual_raw_scores
     new_raw_uncertainties = pd.DataFrame()
 
     scores = all_comparison_user_for_criteria[["entity_a", "entity_b", "score"]]
@@ -63,7 +59,7 @@ def get_new_scores_from_online_update(
     # "Comparison tensor": matrix with all comparisons, values in [-R_MAX, R_MAX]
     r = scores_sym.pivot(index="entity_a", columns="entity_b", values="score")
 
-    r_set=r.loc[list(set_of_entity_to_update)]
+    r_set = r.loc[list(set_of_entity_to_update)]
     r_tilde = r_set / (1.0 + R_MAX)
     r_tilde2 = r_tilde**2
     # r.loc[a:b] is negative when a is prefered to b.
@@ -77,12 +73,12 @@ def get_new_scores_from_online_update(
     for entity in all_entities:
         if not new_raw_scores.index.isin([entity]).any():
             new_raw_scores.loc[entity] = 0.0
-    new_raw_scores = new_raw_scores[
-        new_raw_scores.index.isin(all_entities)
-    ].copy()
+    new_raw_scores = new_raw_scores[new_raw_scores.index.isin(all_entities)].copy()
 
-    new_raw_scores=((L-(k.fillna(0).dot(new_raw_scores))["raw_score"])/Kaa_np).to_frame(name="raw_score")
-    
+    new_raw_scores = (
+        (L - (k.fillna(0).dot(new_raw_scores))["raw_score"]) / Kaa_np
+    ).to_frame(name="raw_score")
+
     # Compute uncertainties
     scores_series = previous_individual_raw_scores.squeeze()
     scores_np = scores_series.to_numpy()
@@ -103,9 +99,10 @@ def get_new_scores_from_online_update(
     delta_star = pd.Series(
         np.sqrt(sigma2) / np.sqrt(np.diag(K_diag)), index=K_diag.index
     )
-    new_raw_uncertainties=delta_star.to_frame(name="raw_uncertainty")
+    new_raw_uncertainties = delta_star.to_frame(name="raw_uncertainty")
 
     return new_raw_scores, new_raw_uncertainties
+
 
 def _run_online_heuristics_for_criterion(
     criteria: str,
@@ -193,21 +190,21 @@ def _run_online_heuristics_for_criterion(
     # we need to recompute global score for a and b
     # in order to so, we need all individual scaled score concerning a and b
     # we will get those and inject the new raw score before scaling for {a|b}/criteria/user_id
-    theta_star_a=new_raw_scores.loc[
-            new_raw_scores.index == entity_id_a, "raw_score"
-        ]
-    delta_star_a=new_raw_uncertainties.loc[
-            new_raw_uncertainties.index == entity_id_a, "raw_uncertainty"
-        ]
-    theta_star_b=new_raw_scores.loc[
-            new_raw_scores.index == entity_id_b, "raw_score"
-        ]
-    delta_star_b=new_raw_uncertainties.loc[
-            new_raw_uncertainties.index == entity_id_b, "raw_uncertainty"
-        ]
+    theta_star_a = new_raw_scores.loc[
+        new_raw_scores.index == entity_id_a, "raw_score"
+    ].values.squeeze()[()]
+    delta_star_a = new_raw_uncertainties.loc[
+        new_raw_uncertainties.index == entity_id_a, "raw_uncertainty"
+    ].values.squeeze()[()]
+    theta_star_b = new_raw_scores.loc[
+        new_raw_scores.index == entity_id_b, "raw_score"
+    ].values.squeeze()[()]
+    delta_star_b = new_raw_uncertainties.loc[
+        new_raw_uncertainties.index == entity_id_b, "raw_uncertainty"
+    ].values.squeeze()[()]
     new_data_a = (entity_id_a, theta_star_a, delta_star_a)
     new_data_b = (entity_id_b, theta_star_b, delta_star_b)
-
+    print(new_data_a, new_data_b)
     partial_scaled_scores_for_ab = (
         apply_and_return_scaling_on_individual_scores_online_heuristics(
             criteria, ml_input, new_data_a, new_data_b, user_id
@@ -460,11 +457,11 @@ def run_online_heuristics(
         user_id=user_id,
         delete_comparison_case=delete_comparison_case,
     )
+    # compute each criterion in parallel
+    remaining_criteria = [c for c in criteria if c != poll.main_criteria]
     if parallel_computing:
         os.register_at_fork(before=db.connections.close_all)
 
-        # compute each criterion in parallel
-        remaining_criteria = [c for c in criteria if c != poll.main_criteria]
         cpu_count = os.cpu_count() or 1
         with Pool(processes=max(1, cpu_count - 1)) as pool:
             for _ in pool.imap_unordered(
