@@ -2,7 +2,7 @@ import logging
 import os
 from functools import partial
 from multiprocessing import Pool
-from typing import Tuple
+from typing import Set, Tuple
 
 import numpy as np
 import pandas as pd
@@ -28,15 +28,15 @@ from .poll_scaling import (
 logger = logging.getLogger(__name__)
 
 R_MAX = COMPARISON_MAX
+TAU_SUBITERATION_NUMBER = 2
 ALPHA = 0.01  # Signal-to-noise hyperparameter
 
 
 def get_new_scores_from_online_update(
     all_comparison_user_for_criteria: pd.DataFrame,
-    id_entity_a: str,
-    id_entity_b: str,
+    set_of_entity_to_update: Set[str],
     previous_individual_raw_scores: pd.DataFrame,
-) -> Tuple[float]:
+) -> Tuple[pd.DataFrame]:
     scores = all_comparison_user_for_criteria[["entity_a", "entity_b", "score"]]
     all_entities = set(scores["entity_a"]) | set(scores["entity_b"])
     all_scores_values = set(scores["score"])
@@ -152,7 +152,7 @@ def get_new_scores_from_online_update(
         else:
             delta_star_b = delta_star[id_entity_b]
 
-    return (theta_star_a, delta_star_a, theta_star_b, delta_star_b)
+    return new_raw_scores, new_raw_uncertainties
 
 
 def compute_new_individual_score_with_heuristics_update(
@@ -202,6 +202,7 @@ def _run_online_heuristics_for_criterion(
     all_comparison_of_user_for_criteria = ml_input.get_comparisons(
         criteria=criteria, user_id=user_id
     )
+
     entity_id_a = Entity.objects.get(uid=uid_a).pk
     entity_id_b = Entity.objects.get(uid=uid_b).pk
 
@@ -223,23 +224,32 @@ def _run_online_heuristics_for_criterion(
     ):
         return
 
-    # Now with previous trick and valid condition check,
-    # all_comparison_of_user_for_criteria have a pair (entity_id_b,entity_id_a)
-    (
-        theta_star_a,
-        delta_star_a,
-        theta_star_b,
-        delta_star_b,
-    ) = compute_and_update_individual_scores_online_heuristics(
-        criteria,
-        ml_input,
-        user_id,
-        poll,
-        all_comparison_of_user_for_criteria,
-        entity_id_a,
-        entity_id_b,
+    set_of_entity_to_update = {entity_id_a, entity_id_b}
+    previous_individual_raw_scores = ml_input.get_indiv_score(
+        user_id=user_id, criteria=criteria
     )
-    # so far we have recompute new indiv score for a and b,
+    previous_individual_raw_scores = previous_individual_raw_scores[
+        ["entity_id", "raw_score"]
+    ]
+    previous_individual_raw_scores = previous_individual_raw_scores.set_index(
+        "entity_id"
+    )
+    new_raw_scores = previous_individual_raw_scores
+    for tau in range(0, TAU_SUBITERATION_NUMBER):
+        if tau > 0:
+            set_of_entity_to_update = compute_and_give_next_set_of_entity_to_update(
+                set_of_entity_to_update, all_comparison_of_user_for_criteria
+            )
+
+        # Now with previous trick and valid condition check,
+        # all_comparison_of_user_for_criteria have a pair (entity_id_b,entity_id_a)
+        new_raw_scores, new_raw_uncertainties = get_new_scores_from_online_update(
+            all_comparison_of_user_for_criteria,
+            set_of_entity_to_update,
+            new_raw_scores,
+        )
+
+    # so far we have recompute new indiv score for a and b and neighbours,
     # we need to recompute global score for a and b
     # in order to so, we need all individual scaled score concerning a and b
     # we will get those and inject the new raw score before scaling for {a|b}/criteria/user_id
@@ -277,6 +287,22 @@ def _run_online_heuristics_for_criterion(
             single_criteria=criteria,
             single_user_id=user_id,
         )
+
+
+def compute_and_give_next_set_of_entity_to_update(
+    set_of_entity_to_update: Set[str], all_comparison_of_user_for_criteria: pd.DataFrame
+):
+    set_of_neighbours_1 = set(
+        all_comparison_of_user_for_criteria.loc[
+            all_comparison_of_user_for_criteria.entity_a.isin(set_of_entity_to_update)
+        ]["entity_b"]
+    )
+    set_of_neighbours_2 = set(
+        all_comparison_of_user_for_criteria.loc[
+            all_comparison_of_user_for_criteria.entity_b.isin(set_of_entity_to_update)
+        ]["entity_a"]
+    )
+    return set_of_entity_to_update | set_of_neighbours_1 | set_of_neighbours_2
 
 
 def calculate_and_save_global_scores_in_all_score_mode(
@@ -422,49 +448,6 @@ def check_requirements_are_good_for_online_heuristics(
     return True
 
 
-def compute_and_update_individual_scores_online_heuristics(
-    criteria: str,
-    ml_input: MlInput,
-    user_id: int,
-    poll: Poll,
-    df_all_comparison_user_for_criteria: pd.DataFrame,
-    entity_id_a: int,
-    entity_id_b: int,
-):
-    """
-    this function apply the online heuristics to raw score for the user and the concerned entities
-    1. we get all the previous scores from the user and the criteria
-    2. we compute the new raw_score and raw_uncertainty (get_new_scores_from_online_update)
-    3. we save the new raw_score
-    """
-    previous_individual_raw_scores = ml_input.get_indiv_score(
-        user_id=user_id, criteria=criteria
-    )
-    previous_individual_raw_scores = previous_individual_raw_scores[
-        ["entity_id", "raw_score"]
-    ]
-    previous_individual_raw_scores = previous_individual_raw_scores.set_index(
-        "entity_id"
-    )
-    (
-        theta_star_a,
-        delta_star_a,
-        theta_star_b,
-        delta_star_b,
-    ) = get_new_scores_from_online_update(
-        df_all_comparison_user_for_criteria,
-        entity_id_a,
-        entity_id_b,
-        previous_individual_raw_scores,
-    )
-    return (
-        theta_star_a,
-        delta_star_a,
-        theta_star_b,
-        delta_star_b,
-    )
-
-
 def run_online_heuristics(
     ml_input: MlInput,
     uid_a: str,
@@ -502,6 +485,20 @@ def run_online_heuristics(
     poll_pk = poll.pk
     criteria = poll.criterias_list
 
+    _run_online_heuristics_for_criterion(
+        ml_input=ml_input,
+        poll_pk=poll_pk,
+        criteria=poll.main_criteria,
+        uid_a=uid_a,
+        uid_b=uid_b,
+        user_id=user_id,
+        delete_comparison_case=delete_comparison_case,
+    )
+    save_tournesol_scores(poll)
+    logger.info(
+        "Online Heuristic Mehestan for poll '%s': main_criteria Done", poll.name
+    )
+
     partial_online_heuristics = partial(
         _run_online_heuristics_for_criterion,
         ml_input=ml_input,
@@ -515,24 +512,24 @@ def run_online_heuristics(
         os.register_at_fork(before=db.connections.close_all)
 
         # compute each criterion in parallel
-        with Pool(processes=max(1, os.cpu_count() - 1)) as pool:
+        remaining_criteria = [c for c in criteria if c != poll.main_criteria]
+        cpu_count = os.cpu_count() or 1
+        with Pool(processes=max(1, cpu_count - 1)) as pool:
             for _ in pool.imap_unordered(
                 partial_online_heuristics,
-                criteria,
+                remaining_criteria,
             ):
                 pass
     else:
-        for criterion in criteria:
+        for criterion in remaining_criteria:
             logger.info(
                 "Sequential Online Heuristic Mehestan  \
                 for poll '%s  for criterion '%s': Start ",
                 poll.name,
                 criterion,
             )
-
             partial_online_heuristics(criterion)
 
-    save_tournesol_scores(poll)
     logger.info("Online Heuristic Mehestan for poll '%s': Done", poll.name)
 
 
