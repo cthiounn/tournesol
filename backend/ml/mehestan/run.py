@@ -77,6 +77,7 @@ def run_mehestan_for_criterion(
     ml_input: MlInput,
     poll_pk: int,
     update_poll_scaling=False,
+    unsave: bool = False,
 ):
     """
     Run Mehestan for the given criterion, in the given poll.
@@ -91,6 +92,9 @@ def run_mehestan_for_criterion(
     )
 
     indiv_scores = get_individual_scores(ml_input, criteria=criteria)
+    if unsave:
+        print("="*100)
+        return
     logger.debug("Individual scores computed for crit '%s'", criteria)
     scaled_scores, scalings = compute_scaled_scores(
         ml_input, individual_scores=indiv_scores
@@ -133,7 +137,7 @@ def run_mehestan_for_criterion(
     )
 
 
-def run_mehestan(ml_input: MlInput, poll: Poll):
+def run_mehestan(ml_input: MlInput, poll: Poll, unsave: bool):
     """
     This function use multiprocessing.
 
@@ -173,8 +177,12 @@ def run_mehestan(ml_input: MlInput, poll: Poll):
         poll_pk=poll_pk,
         criteria=poll.main_criteria,
         update_poll_scaling=True,
+        unsave=unsave,
     )
 
+    if unsave:
+        return
+    
     # compute each criterion in parallel
     remaining_criteria = [c for c in criteria if c != poll.main_criteria]
     cpu_count = os.cpu_count() or 1
