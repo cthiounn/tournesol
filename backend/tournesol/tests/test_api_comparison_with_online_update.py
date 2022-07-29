@@ -8,13 +8,9 @@ from core.tests.factories.user import UserFactory
 from core.utils.time import time_ago
 from tournesol.models import ContributorRatingCriteriaScore, EntityCriteriaScore
 from tournesol.models.poll import ALGORITHM_MEHESTAN
-from tournesol.tests.factories.comparison import (
-    ComparisonCriteriaScoreFactory,
-    ComparisonFactory,
-)
+from tournesol.tests.factories.comparison import ComparisonCriteriaScoreFactory, ComparisonFactory
 from tournesol.tests.factories.entity import VideoFactory
 from tournesol.tests.factories.poll import CriteriaRankFactory, PollFactory
-
 
 
 class FirstComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
