@@ -8,7 +8,10 @@ from core.tests.factories.user import UserFactory
 from core.utils.time import time_ago
 from tournesol.models import ContributorRatingCriteriaScore, EntityCriteriaScore
 from tournesol.models.poll import ALGORITHM_MEHESTAN
-from tournesol.tests.factories.comparison import ComparisonCriteriaScoreFactory, ComparisonFactory
+from tournesol.tests.factories.comparison import (
+    ComparisonCriteriaScoreFactory,
+    ComparisonFactory,
+)
 from tournesol.tests.factories.entity import VideoFactory
 from tournesol.tests.factories.poll import CriteriaRankFactory, PollFactory
 
@@ -19,16 +22,14 @@ class SimpleComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
         CriteriaRankFactory(poll=self.poll, criteria__name="criteria1")
 
         self.entities = VideoFactory.create_batch(3)
-        (
-            self.user1,
-        ) = UserFactory.create_batch(1)
+        (self.user1,) = UserFactory.create_batch(1)
 
         comparison_user1 = ComparisonFactory(
             poll=self.poll,
             user=self.user1,
             entity_1=self.entities[0],
             entity_2=self.entities[1],
-        ) 
+        )
 
         comparisons = list()
         comparisons.append((comparison_user1, 10))
@@ -46,7 +47,7 @@ class SimpleComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
     def test_insert_individual_scores_after_new_comparison_with_online_heuristic_update(
         self,
     ):
-        
+
         contrib_before_insert = set(
             ContributorRatingCriteriaScore.objects.all().values_list()
         )
@@ -96,58 +97,59 @@ class SimpleComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
         #     EntityCriteriaScore.objects.filter(score_mode="default").count(), 3
         # )
 
-    # @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
-    # def test_update_individual_scores_after_new_comparison_with_online_heuristic_update(
-    #     self,
-    # ):
-    #     call_command("ml_train")
-    #     contrib_before_update = set(
-    #         ContributorRatingCriteriaScore.objects.all().values_list()
-    #     )
-    #     self.assertEqual(ContributorRatingCriteriaScore.objects.count(), 8)
-    #     self.assertEqual(
-    #         EntityCriteriaScore.objects.filter(score_mode="default").count(), 2
-    #     )
+    @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
+    def test_update_individual_scores_after_new_comparison_with_online_heuristic_update(
+        self,
+    ):
+        contrib_before_update = set(
+            ContributorRatingCriteriaScore.objects.all().values_list()
+        )
+        self.assertEqual(ContributorRatingCriteriaScore.objects.count(), 2)
+        self.assertEqual(
+            EntityCriteriaScore.objects.filter(score_mode="default").count(), 2
+        )
 
-    #     self.client.force_authenticate(self.user4)
-    #     resp = self.client.put(
-    #         f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[1].uid}/",
-    #         data={
-    #             "criteria_scores": [{"criteria": "criteria1", "score": 10}],
-    #         },
-    #         format="json",
-    #     )
+        self.client.force_authenticate(self.user1)
+        resp = self.client.put(
+            f"/users/me/comparisons/{self.poll.name}/{self.entities[0].uid}/{self.entities[1].uid}/",
+            data={
+                "criteria_scores": [{"criteria": "criteria1", "score": -10}],
+            },
+            format="json",
+        )
 
-    #     self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.status_code, 200, resp.content)
 
-    #     # Individual scores related to the new comparison have been computed
-    #     self.assertEqual(
-    #         ContributorRatingCriteriaScore.objects.filter(
-    #             contributor_rating__user=self.user4
-    #         ).count(),
-    #         2,
-    #     )
-    #     # The score related to the less prefered entity is negative
-    #     user_score = ContributorRatingCriteriaScore.objects.get(
-    #         contributor_rating__user=self.user4,
-    #         contributor_rating__entity=self.entities[0],
-    #         criteria="criteria1",
-    #     )
-    #     self.assertLess(user_score.score, 0)
+        # Individual scores related to the update have been recomputed
+        self.assertEqual(
+            ContributorRatingCriteriaScore.objects.filter(
+                contributor_rating__user=self.user1
+            ).count(),
+            2,
+        )
+        # The score related to the less prefered entity is negative
+        user_score = ContributorRatingCriteriaScore.objects.get(
+            contributor_rating__user=self.user1,
+            contributor_rating__entity=self.entities[1],
+            criteria="criteria1",
+        )
+        self.assertLess(user_score.score, 0)
 
-    #     contrib_after_update = set(
-    #         ContributorRatingCriteriaScore.objects.all().values_list()
-    #     )
+        contrib_after_update = set(
+            ContributorRatingCriteriaScore.objects.all().values_list()
+        )
+        # call_command("ml_train","--unsave")
 
-    #     diff_update = contrib_after_update.difference(contrib_before_update)
-    #     # the update has generate two differences
-    #     self.assertEqual(len(diff_update), 2)
-    #     self.assertEqual(len(contrib_before_update.difference(contrib_after_update)), 2)
-    #     # no new individual scores 8+0=8
-    #     self.assertEqual(ContributorRatingCriteriaScore.objects.count(), 8)
-    #     # no new global scores = 2
-    #     self.assertEqual(
-    #         EntityCriteriaScore.objects.filter(score_mode="default").count(), 2
+        diff_update = contrib_after_update.difference(contrib_before_update)
+        # the update has generate two differences
+        # self.assertEqual(len(diff_update), 2)
+        # self.assertEqual(len(contrib_before_update.difference(contrib_after_update)), 2)
+        # # no new individual scores 8+0=8
+        # self.assertEqual(ContributorRatingCriteriaScore.objects.count(), 8)
+        # # no new global scores = 2
+        # self.assertEqual(
+        #     EntityCriteriaScore.objects.filter(score_mode="default").count(), 2
+
     #     )
 
     # @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
@@ -311,7 +313,7 @@ class SimpleComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
 #             format="json",
 #         )
 #         call_command("ml_train","--unsave")
-        
+
 #         self.assertEqual(resp.status_code, 201, resp.content)
 #         resp = self.client.post(
 #             f"/users/me/comparisons/{self.poll.name}",
