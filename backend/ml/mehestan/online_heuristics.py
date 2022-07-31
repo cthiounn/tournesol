@@ -34,17 +34,17 @@ def get_new_scores_from_online_update(
     previous_individual_raw_scores: pd.DataFrame,
 ) -> Tuple[pd.DataFrame]:
     new_raw_scores = previous_individual_raw_scores
-    new_raw_uncertainties = pd.DataFrame(set_of_entity_to_update,columns=["entity_id"])
-    new_raw_uncertainties["raw_uncertainty"]=0.0
-    new_raw_uncertainties=new_raw_uncertainties.set_index("entity_id")
+    new_raw_uncertainties = pd.DataFrame(set_of_entity_to_update, columns=["entity_id"])
+    new_raw_uncertainties["raw_uncertainty"] = 0.0
+    new_raw_uncertainties = new_raw_uncertainties.set_index("entity_id")
 
     scores = all_comparison_user_for_criteria[["entity_a", "entity_b", "score"]]
     all_entities = set(scores["entity_a"]) | set(scores["entity_b"])
     all_scores_values = set(scores["score"])
     # Null Matrix case
     if len(all_scores_values) == 1 and np.isnan(all_scores_values.pop()):
-        new_raw_scores["raw_score"]=0.0
-        new_raw_uncertainties["raw_uncertainty"]=0.0
+        new_raw_scores["raw_score"] = 0.0
+        new_raw_uncertainties["raw_uncertainty"] = 0.0
         return new_raw_scores, new_raw_uncertainties
 
     scores_sym = pd.concat(
@@ -209,7 +209,7 @@ def _run_online_heuristics_for_criterion(
     ].values.squeeze()[()]
     new_data_a = (entity_id_a, theta_star_a, delta_star_a)
     new_data_b = (entity_id_b, theta_star_b, delta_star_b)
-    
+
     partial_scaled_scores_for_ab = (
         apply_and_return_scaling_on_individual_scores_online_heuristics(
             criteria, ml_input, new_data_a, new_data_b, user_id
@@ -320,7 +320,7 @@ def apply_and_return_scaling_on_individual_scores_online_heuristics(
                 "raw_uncertainty": pd.Series(dtype="float64"),
             }
         )
-    
+
     all_indiv_score = add_or_update_df_indiv_score(
         user_id, entity_id_a, theta_star_a, delta_star_a, all_indiv_score
     )
