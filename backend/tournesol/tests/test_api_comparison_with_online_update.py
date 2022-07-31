@@ -18,7 +18,7 @@ class FirstComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
         self.poll = PollFactory(algorithm=ALGORITHM_MEHESTAN)
         CriteriaRankFactory(poll=self.poll, criteria__name="criteria1")
         self.entities = VideoFactory.create_batch(2)
-        self.user1 = UserFactory.create_batch(1)
+        (self.user1,) = UserFactory.create_batch(1)
         self.client = APIClient()
 
     @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
