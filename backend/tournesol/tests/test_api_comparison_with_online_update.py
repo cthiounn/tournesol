@@ -69,7 +69,7 @@ class SimpleComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
         CriteriaRankFactory(poll=self.poll, criteria__name="criteria1")
 
         self.entities = VideoFactory.create_batch(3)
-        self.user1 = UserFactory.create_batch(1)
+        (self.user1,) = UserFactory.create_batch(1)
 
         comparison_user1 = ComparisonFactory(
             poll=self.poll,
@@ -206,7 +206,7 @@ class SimpleComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
         contrib_before_update = set(
             ContributorRatingCriteriaScore.objects.all().values_list()
         )
-        self.assertEqual(ContributorRatingCriteriaScore.objects.count(),2)
+        self.assertEqual(ContributorRatingCriteriaScore.objects.count(), 2)
         self.assertEqual(
             EntityCriteriaScore.objects.filter(score_mode="default").count(), 2
         )
