@@ -176,7 +176,7 @@ def _run_online_heuristics_for_criterion(
         "entity_id"
     )
     new_raw_scores = previous_individual_raw_scores
-    for tau in range(0, TAU_SUBITERATION_NUMBER + 1):
+    for tau in range(0, TAU_SUBITERATION_NUMBER):
         if tau > 0:
             set_of_entity_to_update = compute_and_give_next_set_of_entity_to_update(
                 set_of_entity_to_update, all_comparison_of_user_for_criteria
