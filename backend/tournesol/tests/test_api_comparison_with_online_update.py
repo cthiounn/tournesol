@@ -1,3 +1,4 @@
+import random
 from unittest.mock import patch
 
 from django.core.management import call_command
@@ -331,3 +332,59 @@ class HundredOfComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
             EntityCriteriaScore.objects.filter(score_mode="default").count(),
             self.number_entities,
         )
+
+
+class RandomDozenOfComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
+    def setUp(self):
+        self.poll = PollFactory(algorithm=ALGORITHM_MEHESTAN)
+        CriteriaRankFactory(poll=self.poll, criteria__name="criteria1")
+        self.number_entities = 12
+        self.entities = VideoFactory.create_batch(self.number_entities)
+        (self.user1,) = UserFactory.create_batch(1)
+        self.client = APIClient()
+        self.list_of_tuple_index = [
+            (i, j)
+            for i in range(self.number_entities)
+            for j in range(i + 1, self.number_entities)
+        ]
+        random.shuffle(self.list_of_tuple_index)
+
+    @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
+    @patch("tournesol.throttling.BurstUserRateThrottle.get_rate")
+    @patch("tournesol.throttling.SustainedUserRateThrottle.get_rate")
+    def test_insert_individual_scores_after_new_comparison_with_online_heuristic_update(
+        self, mock1, mock2
+    ):
+        mock1.return_value = "10000/min"
+        mock2.return_value = "360000/hour"
+        self.assertEqual(ContributorRatingCriteriaScore.objects.count(), 0)
+        self.assertEqual(
+            EntityCriteriaScore.objects.filter(score_mode="default").count(), 0
+        )
+
+        self.client.force_authenticate(self.user1)
+
+        for (i, j) in self.list_of_tuple_index[:10]:
+            resp = self.client.post(
+                f"/users/me/comparisons/{self.poll.name}",
+                data={
+                    "entity_a": {"uid": self.entities[i].uid},
+                    "entity_b": {"uid": self.entities[j].uid},
+                    "criteria_scores": [
+                        {"criteria": "criteria1", "score": random.randint(-10, 10)}
+                    ],
+                },
+                format="json",
+            )
+
+            self.assertEqual(resp.status_code, 201, resp.content)
+            call_command("ml_train", "--unsave")
+
+        # self.number_entities indiv score
+        self.assertEqual(
+            ContributorRatingCriteriaScore.objects.filter(
+                contributor_rating__user=self.user1
+            ).count(),
+            10,
+        )
+        self.assertEqual(ContributorRatingCriteriaScore.objects.count(), 10)
