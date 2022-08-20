@@ -340,7 +340,7 @@ class RandomDozenOfComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase
         CriteriaRankFactory(poll=self.poll, criteria__name="criteria1")
         self.number_entities = 12
         self.entities = VideoFactory.create_batch(self.number_entities)
-        (self.user1,) = UserFactory.create_batch(1)
+        self.users = UserFactory.create_batch(10000)
         self.client = APIClient()
         self.list_of_tuple_index = [
             (i, j)
@@ -361,30 +361,21 @@ class RandomDozenOfComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase
         self.assertEqual(
             EntityCriteriaScore.objects.filter(score_mode="default").count(), 0
         )
+        for user in self.users:
+            self.client.force_authenticate(user)
 
-        self.client.force_authenticate(self.user1)
+            for (i, j) in self.list_of_tuple_index[:10]:
+                resp = self.client.post(
+                    f"/users/me/comparisons/{self.poll.name}",
+                    data={
+                        "entity_a": {"uid": self.entities[i].uid},
+                        "entity_b": {"uid": self.entities[j].uid},
+                        "criteria_scores": [
+                            {"criteria": "criteria1", "score": random.randint(-10, 10)}
+                        ],
+                    },
+                    format="json",
+                )
 
-        for (i, j) in self.list_of_tuple_index[:10]:
-            resp = self.client.post(
-                f"/users/me/comparisons/{self.poll.name}",
-                data={
-                    "entity_a": {"uid": self.entities[i].uid},
-                    "entity_b": {"uid": self.entities[j].uid},
-                    "criteria_scores": [
-                        {"criteria": "criteria1", "score": random.randint(-10, 10)}
-                    ],
-                },
-                format="json",
-            )
-
-            self.assertEqual(resp.status_code, 201, resp.content)
-            call_command("ml_train", "--unsave")
-
-        # self.number_entities indiv score
-        self.assertEqual(
-            ContributorRatingCriteriaScore.objects.filter(
-                contributor_rating__user=self.user1
-            ).count(),
-            10,
-        )
-        self.assertEqual(ContributorRatingCriteriaScore.objects.count(), 10)
+                self.assertEqual(resp.status_code, 201, resp.content)
+            print("finish for user {}".format(user))
