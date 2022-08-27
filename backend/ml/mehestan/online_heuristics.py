@@ -233,8 +233,8 @@ def _run_online_heuristics_for_criterion(
             user_id, entity_id_b, theta_star_b, delta_star_b, score_to_save
         )
         score_to_save["criteria"] = criteria
-        #print("TO_SAVE", score_to_save)
-        print("sigma_score",sum(score_to_save["raw_score"]))
+        # print("TO_SAVE", score_to_save)
+        print("sigma_score", sum(score_to_save["raw_score"]))
         save_contributor_scores(
             poll,
             score_to_save,

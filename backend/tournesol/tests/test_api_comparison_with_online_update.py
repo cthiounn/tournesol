@@ -1,9 +1,12 @@
 import random
 from unittest.mock import patch
 
+import numpy as np
+import scipy.stats as ss
 from django.core.management import call_command
 from django.test import TransactionTestCase, override_settings
 from rest_framework.test import APIClient
+from scipy.stats import truncnorm
 
 from core.tests.factories.user import UserFactory
 from core.utils.time import time_ago
@@ -340,7 +343,7 @@ class RandomDozenOfComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase
         CriteriaRankFactory(poll=self.poll, criteria__name="criteria1")
         self.number_entities = 12
         self.entities = VideoFactory.create_batch(self.number_entities)
-        self.users = UserFactory.create_batch(10000)
+        self.users = UserFactory.create_batch(1000)
         self.client = APIClient()
         self.list_of_tuple_index = [
             (i, j)
@@ -363,19 +366,53 @@ class RandomDozenOfComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase
         )
         for user in self.users:
             self.client.force_authenticate(user)
+            # scale = 3.
+            # range = 10
+            # size = 1000
 
-            for (i, j) in self.list_of_tuple_index[:10]:
+            # X = truncnorm(a=-range/scale, b=+range/scale, scale=scale).rvs(size=size)
+            # X = X.round().astype(int)
+            x = np.arange(-10, 11)
+            prob = np.array(
+                [
+                    0.13242928,
+                    0.12533694,
+                    0.1062586,
+                    0.08069342,
+                    0.05489084,
+                    0.03344625,
+                    0.01825486,
+                    0.00892463,
+                    0.00390822,
+                    0.00153299,
+                    0.00053861,
+                    0.00153299,
+                    0.00390822,
+                    0.00892463,
+                    0.01825486,
+                    0.03344625,
+                    0.05489084,
+                    0.08069342,
+                    0.1062586,
+                    0.12533694,
+                    0.13242928,
+                ]
+            )
+            prob = prob / prob.sum()
+            X = np.random.choice(x, size=10000, p=prob)
+            for indice, (i, j) in enumerate(self.list_of_tuple_index[:10]):
                 resp = self.client.post(
                     f"/users/me/comparisons/{self.poll.name}",
                     data={
                         "entity_a": {"uid": self.entities[i].uid},
                         "entity_b": {"uid": self.entities[j].uid},
                         "criteria_scores": [
-                            {"criteria": "criteria1", "score": random.randint(-10, 10)}
+                            {"criteria": "criteria1", "score": X[indice]}
                         ],
                     },
                     format="json",
                 )
 
                 self.assertEqual(resp.status_code, 201, resp.content)
+            call_command("ml_train", "--unsave", "--user_id", user.id)
             print("finish for user {}".format(user))

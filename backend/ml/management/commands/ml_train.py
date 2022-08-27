@@ -169,6 +169,8 @@ class Command(BaseCommand):
                                 uid_b=uid_b,
                             )
                     else:
-                        run_mehestan(ml_input=ml_input, poll=poll, unsave=unsave)
+                        run_mehestan(
+                            ml_input=ml_input, poll=poll, unsave=unsave, user_id=user_id
+                        )
                 else:
                     raise ValueError(f"unknown algorithm {repr(poll.algorithm)}'")
