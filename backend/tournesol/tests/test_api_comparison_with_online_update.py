@@ -351,7 +351,7 @@ class RandomDozenOfComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase
             for j in range(i + 1, self.number_entities)
         ]
         random.shuffle(self.list_of_tuple_index)
-        print(self.list_of_tuple_index[:1])
+        print(self.list_of_tuple_index[:10])
 
     @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
     @patch("tournesol.throttling.BurstUserRateThrottle.get_rate")
@@ -374,43 +374,43 @@ class RandomDozenOfComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase
             # X = truncnorm(a=-range/scale, b=+range/scale, scale=scale).rvs(size=size)
             # X = X.round().astype(int)
 
-            # x = np.arange(-10, 11)
-            # prob = np.array(
-            #     [
-            #         0.13242928,
-            #         0.12533694,
-            #         0.1062586,
-            #         0.08069342,
-            #         0.05489084,
-            #         0.03344625,
-            #         0.01825486,
-            #         0.00892463,
-            #         0.00390822,
-            #         0.00153299,
-            #         0.00053861,
-            #         0.00153299,
-            #         0.00390822,
-            #         0.00892463,
-            #         0.01825486,
-            #         0.03344625,
-            #         0.05489084,
-            #         0.08069342,
-            #         0.1062586,
-            #         0.12533694,
-            #         0.13242928,
-            #     ]
-            # )
-            # prob = prob / prob.sum()
-            # X = np.random.choice(x, size=10000, p=prob)
-            for indice, (i, j) in enumerate(self.list_of_tuple_index[:1]):
+            x = np.arange(-10, 11)
+            prob = np.array(
+                [
+                    0.13242928,
+                    0.12533694,
+                    0.1062586,
+                    0.08069342,
+                    0.05489084,
+                    0.03344625,
+                    0.01825486,
+                    0.00892463,
+                    0.00390822,
+                    0.00153299,
+                    0.00053861,
+                    0.00153299,
+                    0.00390822,
+                    0.00892463,
+                    0.01825486,
+                    0.03344625,
+                    0.05489084,
+                    0.08069342,
+                    0.1062586,
+                    0.12533694,
+                    0.13242928,
+                ]
+            )
+            prob = prob / prob.sum()
+            X = np.random.choice(x, size=10000, p=prob)
+            for indice, (i, j) in enumerate(self.list_of_tuple_index[:10]):
                 resp = self.client.post(
                     f"/users/me/comparisons/{self.poll.name}",
                     data={
                         "entity_a": {"uid": self.entities[i].uid},
                         "entity_b": {"uid": self.entities[j].uid},
                         "criteria_scores": [
-                            {"criteria": "criteria1", "score": random.randint(-10,10)}
-                            # {"criteria": "criteria1", "score": X[indice]}
+                            # {"criteria": "criteria1", "score": random.randint(-10,10)}
+                            {"criteria": "criteria1", "score": X[indice]}
                         ],
                     },
                     format="json",
@@ -419,3 +419,39 @@ class RandomDozenOfComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase
                 self.assertEqual(resp.status_code, 201, resp.content)
             call_command("ml_train", "--unsave", "--user_id", user.id)
             print("finish for user {}".format(user))
+
+class ConradTest(TransactionTestCase):
+    def setUp(self):
+        self.poll = PollFactory(algorithm=ALGORITHM_MEHESTAN)
+        CriteriaRankFactory(poll=self.poll, criteria__name="criteria1")
+        self.entities = VideoFactory.create_batch(3)
+        (self.user1,) = UserFactory.create_batch(1)
+        self.client = APIClient()
+
+    @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
+    def test(
+        self,
+    ):
+
+        self.client.force_authenticate(self.user1)
+        resp = self.client.post(
+            f"/users/me/comparisons/{self.poll.name}",
+            data={
+                "entity_a": {"uid": self.entities[0].uid},
+                "entity_b": {"uid": self.entities[1].uid},
+                "criteria_scores": [{"criteria": "criteria1", "score": -10}],
+            },
+            format="json",
+        )
+
+        call_command("ml_train")
+        resp = self.client.post(
+            f"/users/me/comparisons/{self.poll.name}",
+            data={
+                "entity_a": {"uid": self.entities[1].uid},
+                "entity_b": {"uid": self.entities[2].uid},
+                "criteria_scores": [{"criteria": "criteria1", "score": 8}],
+            },
+            format="json",
+        )
+        call_command("ml_train", "--unsave")
