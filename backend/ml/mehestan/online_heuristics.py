@@ -78,7 +78,6 @@ def get_new_scores_from_online_update(
         if not new_raw_scores.index.isin([entity]).any():
             new_raw_scores.loc[entity] = 0.0
     new_raw_scores = new_raw_scores[new_raw_scores.index.isin(all_entities)].copy()
-    
     new_raw_scores = (
         (L + (k.fillna(0).dot(new_raw_scores))["raw_score"]) / Kaa_np
     ).to_frame(name="raw_score")

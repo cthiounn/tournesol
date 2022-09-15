@@ -95,8 +95,10 @@ def run_mehestan_for_criterion(
     )
 
     indiv_scores = get_individual_scores(
-        ml_input, criteria=criteria, single_user_id=user_id
+        ml_input, criteria=criteria, 
+        single_user_id=user_id
     )
+    # print(indiv_scores)
     df_heur = ml_input.get_indiv_score(user_id=user_id)
     indiv_scores = indiv_scores.reset_index().set_index(["user_id", "entity_id"])
     df_heur = df_heur.reset_index().set_index(["user_id", "entity_id"])
