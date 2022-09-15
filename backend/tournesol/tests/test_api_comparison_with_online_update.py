@@ -1,12 +1,8 @@
-import random
 from unittest.mock import patch
 
-import numpy as np
-import scipy.stats as ss
 from django.core.management import call_command
 from django.test import TransactionTestCase, override_settings
 from rest_framework.test import APIClient
-from scipy.stats import truncnorm
 
 from core.tests.factories.user import UserFactory
 from core.utils.time import time_ago
@@ -335,87 +331,3 @@ class HundredOfComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
             EntityCriteriaScore.objects.filter(score_mode="default").count(),
             self.number_entities,
         )
-
-
-class RandomDozenOfComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase):
-    def setUp(self):
-        self.poll = PollFactory(algorithm=ALGORITHM_MEHESTAN)
-        CriteriaRankFactory(poll=self.poll, criteria__name="criteria1")
-        self.number_entities = 20
-        self.entities = VideoFactory.create_batch(self.number_entities)
-        self.users = UserFactory.create_batch(1000)
-        self.client = APIClient()
-        self.list_of_tuple_index = [
-            (i, j)
-            for i in range(self.number_entities)
-            for j in range(i + 1, self.number_entities)
-        ]
-        random.shuffle(self.list_of_tuple_index)
-        print(self.list_of_tuple_index[:100])
-
-    @override_settings(UPDATE_MEHESTAN_SCORES_ON_COMPARISON=True)
-    @patch("tournesol.throttling.BurstUserRateThrottle.get_rate")
-    @patch("tournesol.throttling.SustainedUserRateThrottle.get_rate")
-    def test_insert_individual_scores_after_new_comparison_with_online_heuristic_update(
-        self, mock1, mock2
-    ):
-        mock1.return_value = "10000/min"
-        mock2.return_value = "360000/hour"
-        self.assertEqual(ContributorRatingCriteriaScore.objects.count(), 0)
-        self.assertEqual(
-            EntityCriteriaScore.objects.filter(score_mode="default").count(), 0
-        )
-        for user in self.users:
-            self.client.force_authenticate(user)
-            # scale = 3.
-            # range = 10
-            # size = 1000
-
-            # X = truncnorm(a=-range/scale, b=+range/scale, scale=scale).rvs(size=size)
-            # X = X.round().astype(int)
-
-            x = np.arange(-10, 11)
-            prob = np.array(
-                [
-                    0.13242928,
-                    0.12533694,
-                    0.1062586,
-                    0.08069342,
-                    0.05489084,
-                    0.03344625,
-                    0.01825486,
-                    0.00892463,
-                    0.00390822,
-                    0.00153299,
-                    0.00053861,
-                    0.00153299,
-                    0.00390822,
-                    0.00892463,
-                    0.01825486,
-                    0.03344625,
-                    0.05489084,
-                    0.08069342,
-                    0.1062586,
-                    0.12533694,
-                    0.13242928,
-                ]
-            )
-            prob = prob / prob.sum()
-            X = np.random.choice(x, size=10000, p=prob)
-            for indice, (i, j) in enumerate(self.list_of_tuple_index[:100]):
-                resp = self.client.post(
-                    f"/users/me/comparisons/{self.poll.name}",
-                    data={
-                        "entity_a": {"uid": self.entities[i].uid},
-                        "entity_b": {"uid": self.entities[j].uid},
-                        "criteria_scores": [
-                            # {"criteria": "criteria1", "score": random.randint(-10,10)}
-                            {"criteria": "criteria1", "score": X[indice]}
-                        ],
-                    },
-                    format="json",
-                )
-
-                self.assertEqual(resp.status_code, 201, resp.content)
-            call_command("ml_train", "--unsave", "--user_id", user.id)
-            print("finish for user {}".format(user))

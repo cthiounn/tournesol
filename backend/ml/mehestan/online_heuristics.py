@@ -42,7 +42,7 @@ def get_new_scores_from_online_update(
     all_entities = set(scores["entity_a"]) | set(scores["entity_b"])
     all_scores_values = set(scores["score"])
     # Null Matrix case
-    if (len(all_scores_values) == 1 and np.isnan(all_scores_values.pop())):
+    if len(all_scores_values) == 1 and np.isnan(all_scores_values.pop()):
         new_raw_scores["raw_score"] = 0.0
         new_raw_uncertainties["raw_uncertainty"] = 0.0
         return new_raw_scores, new_raw_uncertainties
@@ -82,8 +82,10 @@ def get_new_scores_from_online_update(
         (L + (k.fillna(0).dot(new_raw_scores))["raw_score"]) / Kaa_np
     ).to_frame(name="raw_score")
 
-    new_raw_scores_to_return=previous_individual_raw_scores
-    new_raw_scores_to_return.loc[list(set_of_entity_to_update)]=new_raw_scores.loc[list(set_of_entity_to_update)]
+    new_raw_scores_to_return = previous_individual_raw_scores
+    new_raw_scores_to_return.loc[list(set_of_entity_to_update)] = new_raw_scores.loc[
+        list(set_of_entity_to_update)
+    ]
 
     # Compute uncertainties
     scores_series = previous_individual_raw_scores.squeeze()
@@ -218,7 +220,7 @@ def _run_online_heuristics_for_criterion(
             criteria, ml_input, new_data_a, new_data_b, user_id
         )
     )
-    
+
     if not partial_scaled_scores_for_ab.empty:
         calculate_and_save_global_scores_in_all_score_mode(
             criteria, poll, partial_scaled_scores_for_ab
@@ -229,19 +231,14 @@ def _run_online_heuristics_for_criterion(
 
         # we want to save only individual scores of user
         score_to_save = ml_input.get_indiv_score(user_id=user_id)
-        
-        for entity_id_a,( theta_star_a, delta_star_a) in new_df.iterrows():
+
+        for entity_id_a, (theta_star_a, delta_star_a) in new_df.iterrows():
             score_to_save = add_or_update_df_indiv_score(
                 user_id, entity_id_a, theta_star_a, delta_star_a, score_to_save
-            )    
-        # score_to_save = add_or_update_df_indiv_score(
-        #     user_id, entity_id_a, theta_star_a, delta_star_a, score_to_save
-        # )
-        # score_to_save = add_or_update_df_indiv_score(
-        #     user_id, entity_id_b, theta_star_b, delta_star_b, score_to_save
-        # )
+            )
+
         score_to_save["criteria"] = criteria
-        # print("TO_SAVE", score_to_save)
+
         print("sigma_score", sum(score_to_save["raw_score"]))
         save_contributor_scores(
             poll,
@@ -264,7 +261,7 @@ def compute_and_give_next_set_of_entity_to_update(
             all_comparison_of_user_for_criteria.entity_b.isin(set_of_entity_to_update)
         ]["entity_a"]
     )
-    return  set_of_neighbours_1 | set_of_neighbours_2 | set_of_entity_to_update 
+    return set_of_neighbours_1 | set_of_neighbours_2 | set_of_entity_to_update
 
 
 def calculate_and_save_global_scores_in_all_score_mode(
