@@ -138,11 +138,6 @@ def _run_online_heuristics_for_criterion(
         and we apply poll level scaling at global scores
 
     """
-    print(
-        "START",
-        ml_input.get_indiv_score(user_id=user_id),
-        sum(ml_input.get_indiv_score(user_id=user_id)["raw_score"]),
-    )
     poll = Poll.objects.get(pk=poll_pk)
     all_comparison_of_user_for_criteria = ml_input.get_comparisons(
         criteria=criteria, user_id=user_id
@@ -193,7 +188,6 @@ def _run_online_heuristics_for_criterion(
             set_of_entity_to_update,
             new_raw_scores,
         )
-        print(tau, new_raw_scores, sum(new_raw_scores["raw_score"]))
 
     # so far we have recompute new indiv score for a and b and neighbours,
     # we need to recompute global score for a and b
@@ -239,7 +233,6 @@ def _run_online_heuristics_for_criterion(
 
         score_to_save["criteria"] = criteria
 
-        print("sigma_score", sum(score_to_save["raw_score"]))
         save_contributor_scores(
             poll,
             score_to_save,
