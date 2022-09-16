@@ -439,19 +439,19 @@ class ConradTest(TransactionTestCase):
             data={
                 "entity_a": {"uid": self.entities[0].uid},
                 "entity_b": {"uid": self.entities[1].uid},
-                "criteria_scores": [{"criteria": "criteria1", "score": -10}],
+                "criteria_scores": [{"criteria": "criteria1", "score": -9}],
             },
             format="json",
         )
 
-        call_command("ml_train")
+        call_command("ml_train", "--user_id", self.user1.id)
         resp = self.client.post(
             f"/users/me/comparisons/{self.poll.name}",
             data={
-                "entity_a": {"uid": self.entities[1].uid},
+                "entity_a": {"uid": self.entities[0].uid},
                 "entity_b": {"uid": self.entities[2].uid},
-                "criteria_scores": [{"criteria": "criteria1", "score": 8}],
+                "criteria_scores": [{"criteria": "criteria1", "score": 7}],
             },
             format="json",
         )
-        call_command("ml_train", "--unsave")
+        call_command("ml_train","--unsave", "--user_id", self.user1.id)

@@ -97,15 +97,17 @@ def run_mehestan_for_criterion(
     indiv_scores = get_individual_scores(
         ml_input, criteria=criteria, single_user_id=user_id
     )
-    df_heur = ml_input.get_indiv_score(user_id=user_id)
-    indiv_scores = indiv_scores.reset_index().set_index(["user_id", "entity_id"])
-    df_heur = df_heur.reset_index().set_index(["user_id", "entity_id"])
+
     if unsave:
         print("=" * 100)
+        df_heur = ml_input.get_indiv_score(user_id=user_id)
+        indiv_scores = indiv_scores.reset_index().set_index(["user_id", "entity_id"])
+        df_heur = df_heur.reset_index().set_index(["user_id", "entity_id"])
         df = indiv_scores.join(df_heur, lsuffix="_l", rsuffix="_r")
         print("mea_score", sum(abs(df["raw_score_l"] - df["raw_score_r"])))
         return
     logger.debug("Individual scores computed for crit '%s'", criteria)
+    print(indiv_scores)
     scaled_scores, scalings = compute_scaled_scores(
         ml_input, individual_scores=indiv_scores
     )
