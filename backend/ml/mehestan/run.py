@@ -104,7 +104,16 @@ def run_mehestan_for_criterion(
         indiv_scores = indiv_scores.reset_index().set_index(["user_id", "entity_id"])
         df_heur = df_heur.reset_index().set_index(["user_id", "entity_id"])
         df = indiv_scores.join(df_heur, lsuffix="_l", rsuffix="_r")
+        df_sub=df[df.raw_score_l>df.raw_score_r]
+        df_on=df[df.raw_score_l<df.raw_score_r]
+        df_u_sub=df[df.raw_uncertainty_l>df.raw_uncertainty_r]
+        df_u_on=df[df.raw_uncertainty_l<df.raw_uncertainty_r]
         print("mea_score", sum(abs(df["raw_score_l"] - df["raw_score_r"])))
+        print("mea_score sub", sum(abs(df_sub["raw_score_l"] - df_sub["raw_score_r"])))
+        print("mea_score on", sum(abs(df_on["raw_score_l"] - df_on["raw_score_r"])))
+        print("muea_score", sum(abs(df["raw_uncertainty_l"] - df["raw_uncertainty_r"])))
+        print("muea_score sub", sum(abs(df_u_sub["raw_uncertainty_l"] - df_u_sub["raw_uncertainty_r"])))
+        print("muea_score on", sum(abs(df_u_on["raw_uncertainty_l"] - df_u_on["raw_uncertainty_r"])))
         return
     logger.debug("Individual scores computed for crit '%s'", criteria)
     print(indiv_scores)
