@@ -10,7 +10,11 @@ from django import db
 
 from core.models import User
 from ml.inputs import MlInput, MlInputFromDb
-from ml.outputs import save_contributor_scores, save_entity_scores, save_tournesol_scores
+from ml.outputs import (
+    save_contributor_scores,
+    save_entity_scores,
+    save_tournesol_scores,
+)
 from tournesol.models import Entity, Poll
 from tournesol.models.entity_score import ScoreMode
 from tournesol.utils.constants import COMPARISON_MAX
@@ -32,6 +36,7 @@ def get_new_scores_from_online_update(
     all_comparison_user_for_criteria: pd.DataFrame,
     set_of_entity_to_update: Set[str],
     previous_individual_raw_scores: pd.DataFrame,
+    previous_raw_uncertainties: pd.DataFrame,
 ) -> Tuple[pd.DataFrame]:
     new_raw_scores = previous_individual_raw_scores
     new_raw_uncertainties = pd.DataFrame(set_of_entity_to_update, columns=["entity_id"])
@@ -42,7 +47,7 @@ def get_new_scores_from_online_update(
     all_entities = set(scores["entity_a"]) | set(scores["entity_b"])
     all_scores_values = set(scores["score"])
     # Null Matrix case
-    if (len(all_scores_values) == 1 and np.isnan(all_scores_values.pop())):
+    if len(all_scores_values) == 1 and np.isnan(all_scores_values.pop()):
         new_raw_scores["raw_score"] = 0.0
         new_raw_uncertainties["raw_uncertainty"] = 0.0
         return new_raw_scores, new_raw_uncertainties
@@ -78,13 +83,15 @@ def get_new_scores_from_online_update(
         if not new_raw_scores.index.isin([entity]).any():
             new_raw_scores.loc[entity] = 0.0
     new_raw_scores = new_raw_scores[new_raw_scores.index.isin(all_entities)].copy()
-    
+
     new_raw_scores = (
         (L + (k.fillna(0).dot(new_raw_scores))["raw_score"]) / Kaa_np
     ).to_frame(name="raw_score")
 
-    new_raw_scores_to_return=previous_individual_raw_scores
-    new_raw_scores_to_return.loc[list(set_of_entity_to_update)]=new_raw_scores.loc[list(set_of_entity_to_update)]
+    new_raw_scores_to_return = previous_individual_raw_scores
+    new_raw_scores_to_return.loc[list(set_of_entity_to_update)] = new_raw_scores.loc[
+        list(set_of_entity_to_update)
+    ]
 
     # Compute uncertainties
     scores_series = previous_individual_raw_scores.squeeze()
@@ -108,6 +115,14 @@ def get_new_scores_from_online_update(
     )
     new_raw_uncertainties = delta_star.to_frame(name="raw_uncertainty")
 
+    new_raw_uncertainties_to_return = previous_raw_uncertainties
+
+    print("ABCD",previous_raw_uncertainties,new_raw_uncertainties)
+
+
+    new_raw_uncertainties_to_return.loc[
+        list(set_of_entity_to_update)
+    ] = new_raw_uncertainties.loc[list(set_of_entity_to_update)]
     return new_raw_scores_to_return, new_raw_uncertainties
 
 
@@ -169,16 +184,25 @@ def _run_online_heuristics_for_criterion(
         return
 
     set_of_entity_to_update = {entity_id_a, entity_id_b}
-    previous_individual_raw_scores = ml_input.get_indiv_score(
+    previous_individual_raw_scores_uncertainties = ml_input.get_indiv_score(
         user_id=user_id, criteria=criteria
     )
-    previous_individual_raw_scores = previous_individual_raw_scores[
+
+    previous_individual_raw_scores = previous_individual_raw_scores_uncertainties[
         ["entity_id", "raw_score"]
     ]
     previous_individual_raw_scores = previous_individual_raw_scores.set_index(
         "entity_id"
     )
+
+    previous_individual_raw_uncertainties = (
+        previous_individual_raw_scores_uncertainties[["entity_id", "raw_uncertainty"]]
+    )
+    previous_individual_raw_uncertainties = (
+        previous_individual_raw_uncertainties.set_index("entity_id")
+    )
     new_raw_scores = previous_individual_raw_scores
+    new_raw_uncertainties = previous_individual_raw_uncertainties
     for tau in range(0, TAU_SUBITERATION_NUMBER):
         if tau > 0:
             set_of_entity_to_update = compute_and_give_next_set_of_entity_to_update(
@@ -191,8 +215,10 @@ def _run_online_heuristics_for_criterion(
             all_comparison_of_user_for_criteria,
             set_of_entity_to_update,
             new_raw_scores,
+            new_raw_uncertainties,
         )
         print(tau, new_raw_scores, sum(new_raw_scores["raw_score"]))
+        print("CT2", new_raw_uncertainties)
 
     # so far we have recompute new indiv score for a and b and neighbours,
     # we need to recompute global score for a and b
@@ -219,7 +245,7 @@ def _run_online_heuristics_for_criterion(
             criteria, ml_input, new_data_a, new_data_b, user_id
         )
     )
-    
+
     if not partial_scaled_scores_for_ab.empty:
         calculate_and_save_global_scores_in_all_score_mode(
             criteria, poll, partial_scaled_scores_for_ab
@@ -230,11 +256,11 @@ def _run_online_heuristics_for_criterion(
 
         # we want to save only individual scores of user
         score_to_save = ml_input.get_indiv_score(user_id=user_id)
-        
-        for entity_id_a,( theta_star_a, delta_star_a) in new_df.iterrows():
+
+        for entity_id_a, (theta_star_a, delta_star_a) in new_df.iterrows():
             score_to_save = add_or_update_df_indiv_score(
                 user_id, entity_id_a, theta_star_a, delta_star_a, score_to_save
-            )    
+            )
         # score_to_save = add_or_update_df_indiv_score(
         #     user_id, entity_id_a, theta_star_a, delta_star_a, score_to_save
         # )
@@ -265,7 +291,7 @@ def compute_and_give_next_set_of_entity_to_update(
             all_comparison_of_user_for_criteria.entity_b.isin(set_of_entity_to_update)
         ]["entity_a"]
     )
-    return  set_of_neighbours_1 | set_of_neighbours_2 | set_of_entity_to_update 
+    return set_of_neighbours_1 | set_of_neighbours_2 | set_of_entity_to_update
 
 
 def calculate_and_save_global_scores_in_all_score_mode(
