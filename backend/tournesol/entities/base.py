@@ -2,6 +2,8 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Dict, Iterable, List, Type
 
+from django.contrib.postgres.search import SearchQuery, SearchRank
+from django.db.models import F
 from django.utils import timezone
 from django.utils.functional import cached_property
 from rest_framework.exceptions import ValidationError
@@ -13,6 +15,9 @@ UID_DELIMITER = ":"
 
 
 class EntityType(ABC):
+    """
+    Abstract base class for the processing specific to each entity type (mainly about metadata).
+    """
 
     # The 'name' of this entity type corresponds
     # to the `type` field in Entity,
@@ -174,17 +179,12 @@ class EntityType(ABC):
         return qst
 
     @classmethod
-    def filter_date_lte(cls, qs, dt):
-        return qs.filter(add_time__lte=dt)
+    def filter_date_lte(cls, qs, max_date):
+        return qs.filter(add_time__lte=max_date)
 
     @classmethod
-    def filter_date_gte(cls, qs, dt):
-        return qs.filter(add_time__gte=dt)
-
-    @classmethod
-    @abstractmethod
-    def filter_search(cls, qs, query: str):
-        raise NotImplementedError
+    def filter_date_gte(cls, qs, min_date):
+        return qs.filter(add_time__gte=min_date)
 
     @classmethod
     @abstractmethod
@@ -221,6 +221,9 @@ class EntityType(ABC):
 
         self.instance.last_metadata_request_at = timezone.now()
         if save:
+            # Let's update 'last_metadata_request_at' as soon as possible,
+            # to avoid repeated metadata refreshes, due to concurrent requests
+            # or unexpected errors in the refresh process.
             self.instance.save(update_fields=["last_metadata_request_at"])
 
         self.update_metadata_field()
@@ -229,3 +232,45 @@ class EntityType(ABC):
         self.instance.metadata_timestamp = timezone.now()
         if save:
             self.instance.save(update_fields=["metadata", "metadata_timestamp"])
+
+    @classmethod
+    def filter_search(cls, qs, text_to_search: str, languages=None):
+        """
+        Filter the queryset by verifying if the text string appears in the search vector.
+        The search vector contains the searchable words already filtered, stemmed and indexed
+        according to each language search config.
+
+        Postgres returns a ranking between 0 and 1 of the entities, based on how many
+        times it appears and on which part of the metadata (e.g. finding
+        it in the title will return a higher ranking than finding it in the
+        description). The queryset is annotated with this ranking, that we call
+        "relevance".
+
+        It is currently implemented based on the PostgreSQL full-text search.
+        If there is someday a need for high performances, we could
+        switch to ElasticSearch. But this would require managing a
+        specific server (and thus a new container).
+        """
+        search_query = SearchQuery(text_to_search, config=F("search_config_name"))
+        qs = qs.filter_with_text_query(text_to_search, languages)
+        qs = qs.alias(relevance=SearchRank(F("search_vector"), search_query))
+        return qs
+
+    @classmethod
+    @abstractmethod
+    def update_search_vector(cls, entity) -> None:
+        raise NotImplementedError
+
+    @staticmethod
+    def build_all_search_vectors() -> None:
+        """
+        Rebuild the search vectors for all entities.
+
+        This can take dozens of seconds and is usually not necessary
+        because search_vector is automatically updated after a save.
+        """
+        # pylint: disable=import-outside-toplevel
+        from tournesol.entities import ENTITY_TYPE_NAME_TO_CLASS
+
+        for entity in models.Entity.objects.iterator():
+            ENTITY_TYPE_NAME_TO_CLASS[entity.type].update_search_vector(entity)

@@ -41,13 +41,12 @@ class ContributorRecommendationsBaseView(PollRecommendationsBaseAPIView):
         ).filter(total_score__isnull=False)
 
     def filter_unsafe(self, queryset, filters):
-        show_unsafe = filters["unsafe"]
-        if show_unsafe:
+        if filters["unsafe"]:
             return queryset
-        else:
-            # Ignore RECOMMENDATIONS_MIN_CONTRIBUTORS, only filter on the
-            # total score
-            return queryset.filter(tournesol_score__gt=0)
+
+        # Ignore RECOMMENDATIONS_MIN_CONTRIBUTORS, only filter on the
+        # total score
+        return queryset.filter(tournesol_score__gt=0)
 
 
 class PrivateContributorRecommendationsView(ContributorRecommendationsBaseView):
@@ -70,7 +69,8 @@ class PrivateContributorRecommendationsView(ContributorRecommendationsBaseView):
         queryset, filters = self.filter_by_parameters(self.request, queryset, poll)
         queryset = self.annotate_with_total_score(queryset, self.request, poll, user)
         queryset = self.filter_unsafe(queryset, filters)
-        return queryset.order_by("-total_score", "-pk")
+        queryset = self.sort_results(queryset, filters)
+        return queryset
 
 
 class PublicContributorRecommendationsView(ContributorRecommendationsBaseView):
@@ -94,4 +94,5 @@ class PublicContributorRecommendationsView(ContributorRecommendationsBaseView):
         queryset, filters = self.filter_by_parameters(self.request, queryset, poll)
         queryset = self.annotate_with_total_score(queryset, self.request, poll, user)
         queryset = self.filter_unsafe(queryset, filters)
-        return queryset.order_by("-total_score", "-pk")
+        queryset = self.sort_results(queryset, filters)
+        return queryset

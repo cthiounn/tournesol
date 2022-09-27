@@ -9,9 +9,12 @@ from typing import List
 
 import numpy as np
 from django.conf import settings
+from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.search import SearchVectorField
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Prefetch, Q
+from django.db.models.expressions import RawSQL
 from django.utils import timezone
 from django.utils.html import format_html
 from tqdm.auto import tqdm
@@ -20,10 +23,15 @@ from tournesol.entities import ENTITY_TYPE_CHOICES, ENTITY_TYPE_NAME_TO_CLASS
 from tournesol.entities.base import UID_DELIMITER, EntityType
 from tournesol.entities.video import TYPE_VIDEO, YOUTUBE_UID_NAMESPACE
 from tournesol.models.entity_score import EntityCriteriaScore, ScoreMode
-from tournesol.models.poll import ALGORITHM_MEHESTAN
 from tournesol.models.rate_later import RateLater
 from tournesol.serializers.metadata import VideoMetadata
 from tournesol.utils.constants import MEHESTAN_MAX_SCALED_SCORE
+from tournesol.utils.video_language import (
+    DEFAULT_SEARCH_CONFIG,
+    POSTGRES_SEARCH_CONFIGS,
+    SEARCH_CONFIG_CHOICES,
+    language_to_postgres_config,
+)
 
 LANGUAGES = settings.LANGUAGES
 
@@ -41,6 +49,43 @@ class EntityQueryset(models.QuerySet):
             )
         )
 
+    def filter_with_text_query(self, query: str, languages=None):
+        """
+        This custom query enables to use the index on 'search_vector' independently of
+        the language of the user query.
+
+        The language used to build the 'search_vector' of each entity is stored in a separate
+        column 'search_config_name'. However, when calling
+        `vector @@ query(search_config_name, text)` Postgres query planner is not smart enough
+        to take advantage of this index, although the number of distinct languages is small
+        compared to the number of entities. In order to loop over the possible languages and use
+        the search index to fetch matching entities without an expensive seqscan, we need to
+        explicitly join on 'pg_ts_config' which contains the list of available language
+        configurations.
+        """
+        if languages:
+            search_configs = [language_to_postgres_config(lang) for lang in languages]
+        else:
+            search_configs = POSTGRES_SEARCH_CONFIGS
+
+        return self.alias(
+            _matching_query=RawSQL(
+                """
+                tournesol_entity.id IN (
+                    SELECT e.id
+                    FROM tournesol_entity e
+                    INNER JOIN pg_ts_config c
+                        ON c.oid = e.search_config_name::regconfig AND c.cfgname = ANY(%s)
+                    WHERE e."search_vector" @@ (plainto_tsquery(oid, %s))
+                )
+                """,
+                # `= ANY(my_list)` is preferred to `IN my_tuple` in this query, as a workaround
+                # for a bug in django-debug-toolbar:
+                # https://github.com/jazzband/django-debug-toolbar/issues/1482
+                (search_configs, query),
+            )
+        ).filter(_matching_query=True)
+
 
 class Entity(models.Model):
     """
@@ -54,6 +99,9 @@ class Entity(models.Model):
 
     class Meta:
         verbose_name_plural = "entities"
+        indexes = (
+            GinIndex(name="search_index", fields=['search_vector']),
+        )
 
     objects = EntityQueryset.as_manager()
 
@@ -110,8 +158,39 @@ class Entity(models.Model):
         help_text="Total number of certified contributors who rated the video",
     )
 
+    search_config_name = models.CharField(
+        blank=True,
+        default=DEFAULT_SEARCH_CONFIG,
+        max_length=32,
+        choices=SEARCH_CONFIG_CHOICES,
+        help_text="PostgreSQL text search config to use, based on the entity's language",
+    )
+
+    search_vector = SearchVectorField(
+        editable=False,
+        null=True,
+        help_text="Indexed words used for the full-text search, that are filtered,"
+        " stemmed and weighted according to the language's search config.",
+    )
+
+    def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+        """
+        Always refresh the metadata text search vector.
+
+        This would be hard to do with PostgreSQL triggers because
+        there are different weights and configs, and the
+        format of the metadata can vary with the entity type.
+        """
+        super().save(force_insert, force_update, using, update_fields)
+
+        # If "metadata" has changed, the indexed search_vector needs to be updated.
+        # This condition also avoids infinite loop when calling .save()
+        if (update_fields is None) or ("metadata" in update_fields):
+            if self.type in ENTITY_TYPE_NAME_TO_CLASS:
+                self.entity_cls.update_search_vector(self)
+
     def update_n_ratings(self):
-        from .comparisons import Comparison
+        from .comparisons import Comparison  # pylint: disable=import-outside-toplevel
 
         self.rating_n_ratings = Comparison.objects.filter(
             Q(entity_1=self) | Q(entity_2=self)
@@ -128,7 +207,7 @@ class Entity(models.Model):
         When called, the entity is removed from the user's rate-later list if
         it has been compared at least 4 times.
         """
-        from .comparisons import Comparison
+        from .comparisons import Comparison  # pylint: disable=import-outside-toplevel
 
         n_comparisons = Comparison.objects.filter(
             poll=poll, user=user
@@ -163,18 +242,6 @@ class Entity(models.Model):
         return self.metadata.get("video_id")
 
     @property
-    def best_text(self, min_len=5):
-        """Return description, otherwise title."""
-        priorities = [self.metadata.get("description"), self.metadata.get("name")]
-
-        # going over all priorities
-        for priority in priorities:
-            # selecting one that exists
-            if priority is not None and len(priority) >= min_len:
-                return priority
-        return None
-
-    @property
     def all_text(self):
         """Return concat of description and title."""
         options = [self.metadata.get("description"), self.metadata.get("name")]
@@ -204,12 +271,8 @@ class Entity(models.Model):
 
     def criteria_scores_distributions(self, poll):
         """Returns the distribution of criteria score per criteria for the entity"""
-        if poll.algorithm == ALGORITHM_MEHESTAN:
-            min_score_base = -MEHESTAN_MAX_SCALED_SCORE
-            max_score_base = MEHESTAN_MAX_SCALED_SCORE
-        else:
-            min_score_base = -1.0
-            max_score_base = 1.0
+        min_score_base = -MEHESTAN_MAX_SCALED_SCORE
+        max_score_base = MEHESTAN_MAX_SCALED_SCORE
 
         # Fetch data with QuerySet
         contributor_rating_criteria_score_list = [
@@ -231,8 +294,8 @@ class Entity(models.Model):
         # Create object
         criteria_distributions = []
         for key, values in scores_dict.items():
-            range = (min_score_base, max_score_base)
-            distribution, bins = np.histogram(np.clip(values, *range), range=range)
+            score_range = (min_score_base, max_score_base)
+            distribution, bins = np.histogram(np.clip(values, *score_range), range=score_range)
 
             criteria_distributions.append(CriteriaDistributionScore(
                 key, distribution, bins))
@@ -244,42 +307,45 @@ class Entity(models.Model):
         WARNING: This implementation is obsolete, and relies on non-existing
         fields "{criteria}_quantile" for videos.
         """
-        from .poll import Poll
+        from .poll import Poll  # pylint: disable=import-outside-toplevel
 
-        CRITERIAS = Poll.default_poll().criterias_list()
-        quantiles_by_feature_by_id = {f: {} for f in CRITERIAS}
+        criteria_list = Poll.default_poll().criterias_list()
+        quantiles_by_feature_by_id = {criteria: {} for criteria in criteria_list}
 
         # go over all features
-        # logging.warning("Computing quantiles...")
-        for f in tqdm(CRITERIAS):
+        for criteria in tqdm(criteria_list):
             # order by feature (descenting, because using the top quantile)
-            qs = Entity.objects.filter(**{f + "__isnull": False}).order_by("-" + f)
-            quantiles_f = np.linspace(0.0, 1.0, len(qs))
-            for i, v in tqdm(enumerate(qs)):
-                quantiles_by_feature_by_id[f][v.id] = quantiles_f[i]
+            qs = Entity.objects.filter(**{criteria + "__isnull": False}).order_by("-" + criteria)
+            quantiles_slicing = np.linspace(0.0, 1.0, len(qs))
+            for current_slice, video in tqdm(enumerate(qs)):
+                quantiles_by_feature_by_id[criteria][video.id] = quantiles_slicing[current_slice]
 
         logging.warning("Writing quantiles...")
         video_objects = []
         # TODO: use batched updates with bulk_update
-        for v in tqdm(Entity.objects.all()):
-            for f in CRITERIAS:
+        for entity in tqdm(Entity.objects.all()):
+            for criteria in criteria_list:
                 setattr(
-                    v, f + "_quantile", quantiles_by_feature_by_id[f].get(v.id, None)
+                    entity,
+                    criteria + "_quantile",
+                    quantiles_by_feature_by_id[criteria].get(entity.id, None),
                 )
-            video_objects.append(v)
+            video_objects.append(entity)
 
         Entity.objects.bulk_update(
-            video_objects, batch_size=200, fields=[f + "_quantile" for f in CRITERIAS]
+            video_objects,
+            batch_size=200,
+            fields=[criteria + "_quantile" for criteria in criteria_list],
         )
 
     @classmethod
     def create_from_video_id(cls, video_id):
-        from tournesol.utils.api_youtube import VideoNotFound, get_video_metadata
+        # pylint: disable=import-outside-toplevel
+        from tournesol.utils.api_youtube import get_video_metadata
 
-        try:
-            extra_data = get_video_metadata(video_id)
-        except VideoNotFound:
-            raise
+        # Returns nothing if no YOUTUBE_API_KEY is not configured.
+        # Can also raise VideoNotFound if the video is private or not found by YouTube.
+        extra_data = get_video_metadata(video_id)
 
         serializer = VideoMetadata(
             data={
@@ -294,12 +360,14 @@ class Entity(models.Model):
                 f"Unexpected errors in video metadata format: {serializer.errors}"
             )
 
-        return cls.objects.create(
+        entity = cls.objects.create(
             type=TYPE_VIDEO,
             uid=f"{YOUTUBE_UID_NAMESPACE}{UID_DELIMITER}{video_id}",
             metadata=metadata,
             metadata_timestamp=timezone.now(),
         )
+
+        return entity
 
     @classmethod
     def get_from_video_id(cls, video_id):
@@ -322,7 +390,6 @@ class Entity(models.Model):
 
     @property
     def criteria_scores(self) -> List["EntityCriteriaScore"]:
-        from .entity_score import ScoreMode
         if hasattr(self, "_prefetched_criteria_scores"):
             return list(self._prefetched_criteria_scores)
         return list(self.all_criteria_scores.filter(score_mode=ScoreMode.DEFAULT))

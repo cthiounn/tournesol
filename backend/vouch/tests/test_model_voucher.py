@@ -2,6 +2,8 @@
 All test cases of the `Voucher` model.
 """
 
+from django.core.exceptions import ValidationError
+from django.db.utils import IntegrityError
 from django.test import TestCase
 
 from core.tests.factories.user import UserFactory
@@ -21,7 +23,7 @@ class VoucherTestCase(TestCase):
     _user_3 = "username_3"
     _user_4 = "username_4"
 
-    def setUp(self) -> None:
+    def setUp(self):
         self.user_0 = UserFactory(username=self._user_0)
         self.user_1 = UserFactory(username=self._user_1)
         self.user_2 = UserFactory(username=self._user_2)
@@ -43,7 +45,18 @@ class VoucherTestCase(TestCase):
             ]
         )
 
-    def test_get_given_to_with_one(self) -> None:
+    def test_clean(self):
+        """
+        Test the `clean` method of the model.
+        """
+
+        voucher = Voucher(by=self.user_1, to=self.user_1)
+
+        # A user cannot vouch for him/herself.
+        with self.assertRaises(ValidationError):
+            voucher.clean()
+
+    def test_get_given_to_with_one(self):
         """
         Test `get_given_to` returns the expected voucher when a user has only
         one voucher.
@@ -55,7 +68,7 @@ class VoucherTestCase(TestCase):
         self.assertEqual(vouchers[0].to, self.user_3)
         self.assertEqual(exists, True)
 
-    def test_get_given_to_with_several(self) -> None:
+    def test_get_given_to_with_several(self):
         """
         Test `get_given_to` returns only the expected vouchers when a user has
         several vouchers.
@@ -71,7 +84,7 @@ class VoucherTestCase(TestCase):
             self.assertIn(voucher.by, [self.user_1, self.user_3])
             self.assertIn(voucher.value, [12, 32])
 
-    def test_get_given_to_with_zero(self) -> None:
+    def test_get_given_to_with_zero(self):
         """
         Test `get_given_to` returns no voucher when a user has no voucher.
         """
@@ -79,7 +92,7 @@ class VoucherTestCase(TestCase):
         self.assertEqual(vouchers.count(), 0)
         self.assertEqual(exists, False)
 
-    def test_get_given_by_with_one(self) -> None:
+    def test_get_given_by_with_one(self):
         """
         Test `get_given_by` returns the expected voucher when a user has given
         only one voucher.
@@ -91,7 +104,7 @@ class VoucherTestCase(TestCase):
         self.assertEqual(vouchers[0].to, self.user_2)
         self.assertEqual(exists, True)
 
-    def test_get_given_by_with_several(self) -> None:
+    def test_get_given_by_with_several(self):
         """
         Test `get_given_by` returns only the expected vouchers when a user has
         given several vouchers.
@@ -107,7 +120,7 @@ class VoucherTestCase(TestCase):
             self.assertIn(voucher.to, [self.user_1, self.user_2, self.user_4])
             self.assertIn(voucher.value, [31, 32, 34])
 
-    def test_get_given_by_with_zero(self) -> None:
+    def test_get_given_by_with_zero(self):
         """
         Test `get_given_by` returns no voucher when a user has given no
         voucher.
@@ -115,3 +128,13 @@ class VoucherTestCase(TestCase):
         vouchers, exists = Voucher.get_given_by(self.user_0)
         self.assertEqual(vouchers.count(), 0)
         self.assertEqual(exists, False)
+
+    def test_user_cant_vouch_twice_for_the_same_target(self):
+        """
+        Only one voucher can be created for the couple `by` and `to`.
+        """
+        duplicate = Voucher(by=self.user_1, to=self.user_2, value=13)
+        with self.assertRaises(ValidationError):
+            duplicate.full_clean()
+        with self.assertRaises(IntegrityError):
+            duplicate.save()

@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     "django_prometheus",
     "core",
     "tournesol",
+    "faq",
     "twitterbot",
     "ml",
     "oauth2_provider",
@@ -75,6 +76,11 @@ INSTALLED_APPS = [
     "rest_registration",
     "vouch",
 ]
+
+# Workaround for tests using TransactionTestCase with `serialized_rollback=True`
+# (e.g tests running ml and depending on the default Poll defined by migrations)
+# See bug https://code.djangoproject.com/ticket/30751
+TEST_NON_SERIALIZED_APPS = ["django.contrib.contenttypes", "django.contrib.auth"]
 
 REST_REGISTRATION_MAIN_URL = server_settings.get(
     "REST_REGISTRATION_MAIN_URL", "http://localhost:3000/"
@@ -167,22 +173,19 @@ WSGI_APPLICATION = "settings.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
 
-DATABASES = OrderedDict(
-    [
-        [
-            "default",
-            {
-                "ENGINE": "django_prometheus.db.backends.postgresql",
-                "NAME": server_settings.get("DATABASE_NAME", "tournesol"),
-                "USER": server_settings.get("DATABASE_USER", "postgres"),
-                "PASSWORD": server_settings.get("DATABASE_PASSWORD", "password"),
-                "HOST": server_settings.get("DATABASE_HOST", "localhost"),
-                "PORT": server_settings.get("DATABASE_PORT", 5432),
-                "NUMBER": 42,
-            },
-        ]
-    ]
-)
+DATABASES = {
+    "default": {
+        "ENGINE": "django_prometheus.db.backends.postgresql",
+        "NAME": server_settings.get("DATABASE_NAME", "tournesol"),
+        "USER": server_settings.get("DATABASE_USER", "postgres"),
+        "PASSWORD": server_settings.get("DATABASE_PASSWORD", "password"),
+        "HOST": server_settings.get("DATABASE_HOST", "localhost"),
+        "PORT": server_settings.get("DATABASE_PORT", 5432),
+        "OPTIONS": {
+            "options": "-c random_page_cost=1.1"
+        },
+    },
+}
 
 DRF_RECAPTCHA_PUBLIC_KEY = server_settings.get(
     "DRF_RECAPTCHA_PUBLIC_KEY", "dsfsdfdsfsdfsdfsdf"
@@ -337,6 +340,8 @@ SPECTACULAR_SETTINGS = {
 
 YOUTUBE_API_KEY = server_settings.get("YOUTUBE_API_KEY", "")
 ENABLE_API_WIKIDATA = server_settings.get("ENABLE_API_WIKIDATA", {"MIGRATIONS": False})
+
+DISCORD_CHANNEL_WEBHOOKS = server_settings.get("DISCORD_CHANNEL_WEBHOOKS", {})
 
 TWITTERBOT_CREDENTIALS = server_settings.get("TWITTERBOT_CREDENTIALS", {})
 

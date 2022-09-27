@@ -79,8 +79,8 @@ def run_mehestan_for_criterion(
     ml_input: MlInput,
     poll_pk: int,
     user_id,
+    unsave: bool,
     update_poll_scaling=False,
-    unsave: bool = False,
 ):
     """
     Run Mehestan for the given criterion, in the given poll.
@@ -117,7 +117,7 @@ def run_mehestan_for_criterion(
             sum(abs(df["raw_uncertainty_l"] - df["raw_uncertainty_r"])),
             sum(abs(df_u_sub["raw_uncertainty_l"] - df_u_sub["raw_uncertainty_r"])),
             sum(abs(df_u_on["raw_uncertainty_l"] - df_u_on["raw_uncertainty_r"])),
-            df.shape
+            df.shape,
         )
         return
     logger.debug("Individual scores computed for crit '%s'", criteria)
@@ -132,7 +132,7 @@ def run_mehestan_for_criterion(
         global_scores = get_global_scores(scaled_scores, score_mode=mode)
         global_scores["criteria"] = criteria
 
-        if update_poll_scaling and mode == ScoreMode.DEFAULT:
+        if update_poll_scaling and mode == ScoreMode.DEFAULT and len(global_scores) > 0:
             quantile_value = np.quantile(global_scores["score"], POLL_SCALING_QUANTILE)
             scale = (
                 np.tan(POLL_SCALING_SCORE_AT_QUANTILE * TAU / (4 * MAX_SCORE))
@@ -206,9 +206,6 @@ def run_mehestan(ml_input: MlInput, poll: Poll, unsave: bool, user_id):
         unsave=unsave,
         user_id=user_id,
     )
-
-    if unsave:
-        return
 
     # compute each criterion in parallel
     remaining_criteria = [c for c in criteria if c != poll.main_criteria]

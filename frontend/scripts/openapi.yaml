@@ -450,6 +450,36 @@ paths:
                 type: string
                 format: binary
           description: ''
+  /faq/:
+    get:
+      operationId: faq_list
+      description: List all questions and their answers, translated in a specific
+        language.
+      parameters:
+      - name: limit
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: The initial index from which to return the results.
+        schema:
+          type: integer
+      tags:
+      - faq
+      security:
+      - oauth2:
+        - read write groups
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedFAQEntryList'
+          description: ''
   /polls/{name}/:
     get:
       operationId: polls_retrieve
@@ -583,12 +613,14 @@ paths:
           each criteria.
         style: deepObject
         examples:
+          DefaultWeights:
+            summary: Default weights
           WeightsExample:
             value:
               reliability: 10
               importance: 10
               ignored_criteria: 0
-            summary: weights example
+            summary: Weights example
       - in: query
         name: metadata
         schema:
@@ -597,10 +629,14 @@ paths:
         description: Filter by one or more metadata.
         style: deepObject
         examples:
+          NoMetadataFilter:
+            summary: No metadata filter
           Videos-SomeExamples:
             value:
-              language: fr,pt
-              uploader: kurzgesagtES
+              language:
+              - en
+              - pt
+              uploader: Kurzgesagt – In a Nutshell
             summary: Videos - some examples
           Videos-VideosOf8MinutesOrLess(480Sec):
             value:
@@ -631,6 +667,46 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedRecommendationList'
+          description: ''
+  /preview/.*:
+    get:
+      operationId: preview_.*_retrieve
+      description: Default website preview.
+      tags:
+      - preview
+      security:
+      - oauth2:
+        - read write groups
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /preview/entities/{uid}:
+    get:
+      operationId: preview_entities_retrieve
+      description: Generic preview of an entity.
+      parameters:
+      - in: path
+        name: uid
+        schema:
+          type: string
+        required: true
+      tags:
+      - preview
+      security:
+      - oauth2:
+        - read write groups
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
           description: ''
   /schema/:
     get:
@@ -854,12 +930,14 @@ paths:
           each criteria.
         style: deepObject
         examples:
+          DefaultWeights:
+            summary: Default weights
           WeightsExample:
             value:
               reliability: 10
               importance: 10
               ignored_criteria: 0
-            summary: weights example
+            summary: Weights example
       - in: query
         name: metadata
         schema:
@@ -868,10 +946,14 @@ paths:
         description: Filter by one or more metadata.
         style: deepObject
         examples:
+          NoMetadataFilter:
+            summary: No metadata filter
           Videos-SomeExamples:
             value:
-              language: fr,pt
-              uploader: kurzgesagtES
+              language:
+              - en
+              - pt
+              uploader: Kurzgesagt – In a Nutshell
             summary: Videos - some examples
           Videos-VideosOf8MinutesOrLess(480Sec):
             value:
@@ -1196,8 +1278,8 @@ paths:
   /users/me/contributor_ratings/{poll_name}/{uid}/:
     get:
       operationId: users_me_contributor_ratings_retrieve
-      description: Retrieve the logged-in user's ratings for a specific video in a
-        given poll (computed automatically from the user's comparisons).
+      description: Retrieve the logged-in user's ratings for a specific entity (computed
+        automatically from the user's comparisons).
       parameters:
       - in: path
         name: poll_name
@@ -1224,7 +1306,7 @@ paths:
     put:
       operationId: users_me_contributor_ratings_update
       description: Update public / private status of the logged-in user ratings for
-        a specific video, in a given poll.
+        a specific entity.
       parameters:
       - in: path
         name: poll_name
@@ -1262,7 +1344,7 @@ paths:
     patch:
       operationId: users_me_contributor_ratings_partial_update
       description: Update public / private status of the logged-in user ratings for
-        a specific video, in a given poll.
+        a specific entity.
       parameters:
       - in: path
         name: poll_name
@@ -1359,7 +1441,7 @@ paths:
   /users/me/entities_to_compare/{poll_name}/:
     get:
       operationId: users_me_entities_to_compare_list
-      description: Retrieve a list of recommendations to compare for the logged user
+      description: Retrieve suggested entities to compare for the logged user
       parameters:
       - in: path
         name: poll_name
@@ -1397,7 +1479,7 @@ paths:
   /users/me/exports/all/:
     get:
       operationId: users_me_exports_all_retrieve
-      description: Download current user data in .zip file
+      description: Download the current user's data in a .zip file
       tags:
       - users
       security:
@@ -1414,7 +1496,7 @@ paths:
   /users/me/exports/comparisons/:
     get:
       operationId: users_me_exports_comparisons_retrieve
-      description: Download current user data in .zip file
+      description: Download the current user's comparisons in a .csv file
       tags:
       - users
       security:
@@ -1531,6 +1613,127 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProofOfVote'
           description: ''
+  /users/me/rate_later/{poll_name}/:
+    get:
+      operationId: users_me_rate_later_list
+      description: List all entities of the logged user's rate-later list, for a given
+        poll.
+      parameters:
+      - in: path
+        name: poll_name
+        schema:
+          type: string
+        required: true
+      - name: limit
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: The initial index from which to return the results.
+        schema:
+          type: integer
+      tags:
+      - users
+      security:
+      - oauth2:
+        - read write groups
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedRateLaterList'
+          description: ''
+    post:
+      operationId: users_me_rate_later_create
+      description: Add a new entity to the logged user's rate-later list, for a given
+        poll.
+      parameters:
+      - in: path
+        name: poll_name
+        schema:
+          type: string
+        required: true
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RateLaterRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RateLaterRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RateLaterRequest'
+        required: true
+      security:
+      - oauth2:
+        - read write groups
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLater'
+          description: ''
+        '409':
+          description: The entity is already in the user's rate-later list of this
+            poll, or there is an other error with the database query.
+  /users/me/rate_later/{poll_name}/{uid}/:
+    get:
+      operationId: users_me_rate_later_retrieve
+      description: Get an entity from the logged user's rate-later list.
+      parameters:
+      - in: path
+        name: poll_name
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: uid
+        schema:
+          type: string
+        required: true
+      tags:
+      - users
+      security:
+      - oauth2:
+        - read write groups
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLater'
+          description: ''
+    delete:
+      operationId: users_me_rate_later_destroy
+      description: Delete an entity from the logged user's rate-later list.
+      parameters:
+      - in: path
+        name: poll_name
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: uid
+        schema:
+          type: string
+        required: true
+      tags:
+      - users
+      security:
+      - oauth2:
+        - read write groups
+      responses:
+        '204':
+          description: No response body
   /users/me/recommendations/{poll_name}:
     get:
       operationId: users_me_recommendations_list
@@ -1587,12 +1790,14 @@ paths:
           each criteria.
         style: deepObject
         examples:
+          DefaultWeights:
+            summary: Default weights
           WeightsExample:
             value:
               reliability: 10
               importance: 10
               ignored_criteria: 0
-            summary: weights example
+            summary: Weights example
       - in: query
         name: metadata
         schema:
@@ -1601,10 +1806,14 @@ paths:
         description: Filter by one or more metadata.
         style: deepObject
         examples:
+          NoMetadataFilter:
+            summary: No metadata filter
           Videos-SomeExamples:
             value:
-              language: fr,pt
-              uploader: kurzgesagtES
+              language:
+              - en
+              - pt
+              uploader: Kurzgesagt – In a Nutshell
             summary: Videos - some examples
           Videos-VideosOf8MinutesOrLess(480Sec):
             value:
@@ -1630,7 +1839,9 @@ paths:
   /users/me/unconnected_entities/{poll_name}/{uid}/:
     get:
       operationId: users_me_unconnected_entities_list
-      description: Show unconnected entities for the current user
+      description: List unconnected entities of the current user from a target entity
+        and the user's graph of comparisons (entities are vertices and comparisons
+        are edges).
       parameters:
       - in: path
         name: poll_name
@@ -1666,77 +1877,38 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedEntityNoExtraFieldList'
           description: ''
-  /users/me/video_rate_later/:
-    get:
-      operationId: users_me_video_rate_later_list
-      description: List all videos of a user's rate later list, or add a video to
-        the list.
-      parameters:
-      - name: limit
-        required: false
-        in: query
-        description: Number of results to return per page.
-        schema:
-          type: integer
-      - name: offset
-        required: false
-        in: query
-        description: The initial index from which to return the results.
-        schema:
-          type: integer
-      tags:
-      - users
-      security:
-      - oauth2:
-        - read write groups
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedRateLaterList'
-          description: ''
+  /users/me/vouchers/:
     post:
-      operationId: users_me_video_rate_later_create
-      description: List all videos of a user's rate later list, or add a video to
-        the list.
+      operationId: users_me_vouchers_create
+      description: The logged-in user give a voucher to the target user.
       tags:
       - users
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RateLaterRequest'
+              $ref: '#/components/schemas/GivenVoucherRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/RateLaterRequest'
+              $ref: '#/components/schemas/GivenVoucherRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/RateLaterRequest'
+              $ref: '#/components/schemas/GivenVoucherRequest'
         required: true
       security:
       - oauth2:
         - read write groups
       responses:
-        '200':
+        '201':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RateLater'
+                $ref: '#/components/schemas/GivenVoucher'
           description: ''
-        '409':
-          description: 'Conflict: the video is already in the rate later list, or
-            there is an other error with the database query.'
-  /users/me/video_rate_later/{video_id}/:
+  /users/me/vouchers/given/:
     get:
-      operationId: users_me_video_rate_later_retrieve
-      description: Fetch a video from user's rate later list
-      parameters:
-      - in: path
-        name: video_id
-        schema:
-          type: string
-        required: true
+      operationId: users_me_vouchers_given_list
+      description: List all the vouchers given by the the logged-in user.
       tags:
       - users
       security:
@@ -1747,14 +1919,17 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RateLater'
+                type: array
+                items:
+                  $ref: '#/components/schemas/GivenVoucher'
           description: ''
+  /users/me/vouchers/given/{username}/:
     delete:
-      operationId: users_me_video_rate_later_destroy
-      description: Delete a video from user's rate later list
+      operationId: users_me_vouchers_given_destroy
+      description: Delete a voucher given to a target user by the logged-in user.
       parameters:
       - in: path
-        name: video_id
+        name: username
         schema:
           type: string
         required: true
@@ -1766,6 +1941,24 @@ paths:
       responses:
         '204':
           description: No response body
+  /users/me/vouchers/received/:
+    get:
+      operationId: users_me_vouchers_received_list
+      description: List all the vouchers received by the logged-in user
+      tags:
+      - users
+      security:
+      - oauth2:
+        - read write groups
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReadOnlyVoucher'
+          description: ''
   /video/:
     get:
       operationId: video_list
@@ -2139,6 +2332,7 @@ components:
       - total
     ContributorCriteriaCorrelations:
       type: object
+      description: Contains the criterias, and the matrices of correlations and slopes
       properties:
         criterias:
           type: array
@@ -2172,11 +2366,12 @@ components:
         score:
           type: number
           format: float
-          description: Score for the given criteria
+          description: Score for the given criteria, after individual and poll scalings
+            applied
         uncertainty:
           type: number
           format: float
-          description: Uncertainty about the video's score for the given criteria
+          description: Uncertainty about the criteria score
       required:
       - criteria
     ContributorCriteriaScoreRequest:
@@ -2190,11 +2385,12 @@ components:
         score:
           type: number
           format: float
-          description: Score for the given criteria
+          description: Score for the given criteria, after individual and poll scalings
+            applied
         uncertainty:
           type: number
           format: float
-          description: Uncertainty about the video's score for the given criteria
+          description: Uncertainty about the criteria score
       required:
       - criteria
     ContributorRating:
@@ -2273,39 +2469,54 @@ components:
       - is_public
     ContributorRecommendations:
       type: object
+      description: |-
+        An entity recommended by a user.
+
+        In addition to the fields inherited from `RecommendationSerializer`, this
+        serializer also display the public status of the `ContributorRating`
+        related to the trio poll / entity / user.
+
+        Note that the fields `n_comparisons` and `n_contributors` contain
+        the collective values, and are not specific to the user.
       properties:
         uid:
           type: string
           description: A unique identifier, build with a namespace and an external
             id.
           maxLength: 144
+        type:
+          $ref: '#/components/schemas/TypeEnum'
+        n_comparisons:
+          type: integer
+        n_contributors:
+          type: integer
         metadata:
           type: object
           additionalProperties: {}
           readOnly: true
-        is_public:
-          type: boolean
-          readOnly: true
-        type:
-          $ref: '#/components/schemas/TypeEnum'
         total_score:
           type: number
           format: float
-        criteria_scores:
-          type: array
-          items:
-            $ref: '#/components/schemas/ContributorCriteriaScore'
-          readOnly: true
         tournesol_score:
           type: number
           format: float
           nullable: true
           description: The aggregated of all criteria for all users in a specific
             poll.
+        criteria_scores:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContributorCriteriaScore'
+          readOnly: true
+        is_public:
+          type: boolean
+          readOnly: true
       required:
       - criteria_scores
       - is_public
       - metadata
+      - n_comparisons
+      - n_contributors
       - total_score
       - type
       - uid
@@ -2537,6 +2748,23 @@ components:
       - video
       - candidate_fr_2022
       type: string
+    FAQEntry:
+      type: object
+      description: A translated question with its translated answer.
+      properties:
+        name:
+          type: string
+          description: The unique identifier of the question.
+          maxLength: 50
+          pattern: ^[-a-zA-Z0-9_]+$
+        question:
+          type: string
+        answer:
+          type: string
+      required:
+      - answer
+      - name
+      - question
     GenderEnum:
       enum:
       - Not Specified
@@ -2545,6 +2773,37 @@ components:
       - Female
       - Male
       type: string
+    GivenVoucher:
+      type: object
+      description: |-
+        A voucher given by the logged-in user to a target user.
+
+        As the public status of the voucher is displayed, this serializer
+        shouldn't be used to list the vouchers not related to the logged-in user.
+        Prefer `PublicGivenVoucherSerializer` instead.
+      properties:
+        by:
+          type: string
+          readOnly: true
+        to:
+          type: string
+      required:
+      - by
+      - to
+    GivenVoucherRequest:
+      type: object
+      description: |-
+        A voucher given by the logged-in user to a target user.
+
+        As the public status of the voucher is displayed, this serializer
+        shouldn't be used to list the vouchers not related to the logged-in user.
+        Prefer `PublicGivenVoucherSerializer` instead.
+      properties:
+        to:
+          type: string
+          minLength: 1
+      required:
+      - to
     Length3Cycles:
       type: object
       description: |-
@@ -2949,6 +3208,26 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/EntityNoExtraField'
+    PaginatedFAQEntryList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/FAQEntry'
     PaginatedRateLaterList:
       type: object
       properties:
@@ -3154,11 +3433,11 @@ components:
           format: binary
           nullable: true
           description: Your profile picture.
-        trust_score:
+        voting_right:
           type: number
           format: float
           nullable: true
-          description: The global trust score assigned to the user based on the vouching
+          description: The voting right assigned to the user based on the vouching
             mechanism.
         is_trusted:
           type: boolean
@@ -3247,17 +3526,43 @@ components:
     RateLater:
       type: object
       properties:
-        video:
-          $ref: '#/components/schemas/RelatedVideo'
+        entity:
+          $ref: '#/components/schemas/RelatedEntity'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Time at which the video is saved.
       required:
-      - video
+      - created_at
+      - entity
     RateLaterRequest:
       type: object
       properties:
-        video:
-          $ref: '#/components/schemas/RelatedVideoRequest'
+        entity:
+          $ref: '#/components/schemas/RelatedEntityRequest'
       required:
-      - video
+      - entity
+    ReadOnlyVoucher:
+      type: object
+      description: |-
+        A read-only `Voucher` serializer.
+
+        Can be used to safely display a given or a received voucher.
+
+        As the public status of the voucher is displayed, this serializer
+        shouldn't be used to list the vouchers not related to the logged-in user.
+        Prefer `PublicReadOnlyVoucherSerializer` instead.
+      properties:
+        by:
+          type: string
+          readOnly: true
+        to:
+          type: string
+          readOnly: true
+      required:
+      - by
+      - to
     Recommendation:
       type: object
       properties:
@@ -3457,11 +3762,11 @@ components:
           format: uri
           nullable: true
           description: Your profile picture.
-        trust_score:
+        voting_right:
           type: number
           format: float
           nullable: true
-          description: The global trust score assigned to the user based on the vouching
+          description: The voting right assigned to the user based on the vouching
             mechanism.
       required:
       - email
@@ -3609,11 +3914,11 @@ components:
           format: binary
           nullable: true
           description: Your profile picture.
-        trust_score:
+        voting_right:
           type: number
           format: float
           nullable: true
-          description: The global trust score assigned to the user based on the vouching
+          description: The voting right assigned to the user based on the vouching
             mechanism.
         password_confirm:
           type: string
@@ -3669,92 +3974,6 @@ components:
           maxLength: 144
       required:
       - uid
-    RelatedVideo:
-      type: object
-      description: |-
-        A video serializer that will create the Entity object on validation
-        if it does not exist in the database yet.
-
-        Used by ModelSerializer(s) having one or more nested relations with Entity,
-        and having the constraint to ensure that video instances exist before
-        they can be saved properly.
-      properties:
-        uid:
-          type: string
-          readOnly: true
-          description: A unique identifier, build with a namespace and an external
-            id.
-        name:
-          type: string
-          readOnly: true
-          description: Video title
-        description:
-          type: string
-          readOnly: true
-          nullable: true
-          description: Video description, from YouTube
-        publication_date:
-          type: string
-          format: date
-          readOnly: true
-          nullable: true
-        views:
-          type: integer
-          readOnly: true
-          nullable: true
-        uploader:
-          type: string
-          readOnly: true
-          nullable: true
-          description: Name of the channel on YouTube
-        language:
-          type: string
-          readOnly: true
-          nullable: true
-        rating_n_ratings:
-          type: integer
-          readOnly: true
-          description: Total number of pairwise comparisons for this videofrom certified
-            contributors
-        rating_n_contributors:
-          type: integer
-          readOnly: true
-          description: Total number of certified contributors who rated the video
-        duration:
-          type: integer
-          readOnly: true
-          nullable: true
-        video_id:
-          type: string
-          pattern: ^([A-Za-z0-9-_]{11})$
-      required:
-      - description
-      - duration
-      - language
-      - name
-      - publication_date
-      - rating_n_contributors
-      - rating_n_ratings
-      - uid
-      - uploader
-      - video_id
-      - views
-    RelatedVideoRequest:
-      type: object
-      description: |-
-        A video serializer that will create the Entity object on validation
-        if it does not exist in the database yet.
-
-        Used by ModelSerializer(s) having one or more nested relations with Entity,
-        and having the constraint to ensure that video instances exist before
-        they can be saved properly.
-      properties:
-        video_id:
-          type: string
-          minLength: 1
-          pattern: ^([A-Za-z0-9-_]{11})$
-      required:
-      - video_id
     ReligionEnum:
       enum:
       - Not Specified
@@ -4292,11 +4511,11 @@ components:
           format: uri
           nullable: true
           description: Your profile picture.
-        trust_score:
+        voting_right:
           type: number
           format: float
           nullable: true
-          description: The global trust score assigned to the user based on the vouching
+          description: The voting right assigned to the user based on the vouching
             mechanism.
         is_trusted:
           type: boolean
@@ -4439,11 +4658,11 @@ components:
           format: binary
           nullable: true
           description: Your profile picture.
-        trust_score:
+        voting_right:
           type: number
           format: float
           nullable: true
-          description: The global trust score assigned to the user based on the vouching
+          description: The voting right assigned to the user based on the vouching
             mechanism.
         is_trusted:
           type: boolean

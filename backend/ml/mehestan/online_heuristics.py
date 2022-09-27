@@ -20,6 +20,7 @@ from tournesol.models.entity_score import ScoreMode
 from tournesol.utils.constants import COMPARISON_MAX
 
 from .global_scores import get_global_scores
+from .individual import calculate_lkL_from_scores
 from .poll_scaling import (
     apply_poll_scaling_on_global_scores,
     apply_poll_scaling_on_individual_scaled_scores,
@@ -52,30 +53,7 @@ def get_new_scores_from_online_update(
         new_raw_uncertainties["raw_uncertainty"] = 0.0
         return new_raw_scores, new_raw_uncertainties
 
-    scores_sym = pd.concat(
-        [
-            scores,
-            pd.DataFrame(
-                {
-                    "entity_a": scores.entity_b,
-                    "entity_b": scores.entity_a,
-                    "score": -1 * scores.score,
-                }
-            ),
-        ]
-    )
-
-    # "Comparison tensor": matrix with all comparisons, values in [-R_MAX, R_MAX]
-    r = scores_sym.pivot(index="entity_a", columns="entity_b", values="score")
-
-    r_set = r.loc[list(set_of_entity_to_update)]
-    r_tilde = r_set / (1.0 + R_MAX)
-    r_tilde2 = r_tilde**2
-    # r.loc[a:b] is negative when a is prefered to b.
-    l = -1.0 * r_tilde / np.sqrt(1.0 - r_tilde2)  # noqa: E741
-    k = (1.0 - r_tilde2) ** 3
-
-    L = k.mul(l).sum(axis=1)
+    l, k, L = calculate_lkL_from_scores(scores, filter=list(set_of_entity_to_update))
     Kaa_np = np.array(k.sum(axis=1) + ALPHA)
 
     # to compute dot_product, we need vector of previous_scores to be complete
@@ -83,7 +61,6 @@ def get_new_scores_from_online_update(
         if not new_raw_scores.index.isin([entity]).any():
             new_raw_scores.loc[entity] = 0.0
     new_raw_scores = new_raw_scores[new_raw_scores.index.isin(all_entities)].copy()
-
     new_raw_scores = (
         (L + (k.fillna(0).dot(new_raw_scores))["raw_score"]) / Kaa_np
     ).to_frame(name="raw_score")
@@ -102,17 +79,9 @@ def get_new_scores_from_online_update(
         columns=scores_series.index,
     )
 
-    K_diag = pd.DataFrame(
-        data=np.diag(k.sum(axis=1) + ALPHA),
-        index=k.index,
-        columns=k.index,
-    )
-
     sigma2 = (1.0 + (np.nansum(k * (l - theta_star_ab) ** 2) / 2)) / len(scores)
 
-    delta_star = pd.Series(
-        np.sqrt(sigma2) / np.sqrt(np.diag(K_diag)), index=K_diag.index
-    )
+    delta_star = pd.Series(np.sqrt(sigma2) / np.sqrt(Kaa_np), index=k.index)
     new_raw_uncertainties = delta_star.to_frame(name="raw_uncertainty")
 
     new_raw_uncertainties_to_return = previous_raw_uncertainties
@@ -152,11 +121,6 @@ def _run_online_heuristics_for_criterion(
         and we apply poll level scaling at global scores
 
     """
-    print(
-        "START",
-        ml_input.get_indiv_score(user_id=user_id),
-        sum(ml_input.get_indiv_score(user_id=user_id)["raw_score"]),
-    )
     poll = Poll.objects.get(pk=poll_pk)
     all_comparison_of_user_for_criteria = ml_input.get_comparisons(
         criteria=criteria, user_id=user_id
@@ -395,6 +359,15 @@ def apply_and_return_scaling_on_individual_scores_online_heuristics(
 def add_or_update_df_indiv_score(
     user_id, entity_id_a, theta_star_a, delta_star_a, all_indiv_score
 ):
+    if all_indiv_score.empty:
+        all_indiv_score = pd.DataFrame(
+            {
+                "user_id": pd.Series(dtype="int64"),
+                "entity_id": pd.Series(dtype="int64"),
+                "raw_score": pd.Series(dtype="float64"),
+                "raw_uncertainty": pd.Series(dtype="float64"),
+            }
+        )
     if all_indiv_score[
         (all_indiv_score["entity_id"] == entity_id_a)
         & (all_indiv_score["user_id"] == user_id)

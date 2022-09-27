@@ -1,8 +1,8 @@
 """
-The tournesol app API routes.
+The `tournesol` app routes.
 """
 
-from django.urls import include, path
+from django.urls import include, path, re_path
 from rest_framework import routers
 
 from tournesol.views.proof_of_vote import ProofOfVoteView
@@ -29,12 +29,8 @@ from .views.polls import (
     PollsRecommendationsView,
     PollsView,
 )
-from .views.rate_later import (
-    LegacyRateLaterDetail,
-    LegacyRateLaterList,
-    RateLaterDetail,
-    RateLaterList,
-)
+from .views.preview import DynamicWebsitePreviewDefault, DynamicWebsitePreviewEntity
+from .views.rate_later import RateLaterDetail, RateLaterList
 from .views.ratings import (
     ContributorRatingDetail,
     ContributorRatingList,
@@ -54,6 +50,8 @@ urlpatterns = [
     path("", include(router.urls)),
     # User API
     path("users/me/", CurrentUserView.as_view(), name="users_me"),
+    # Voucher API
+    path("users/me/", include("vouch.urls")),
     # Data exports
     path(
         "users/me/exports/comparisons/",
@@ -102,17 +100,6 @@ urlpatterns = [
         "users/me/rate_later/<str:poll_name>/<str:uid>/",
         RateLaterDetail.as_view(),
         name="usersme_ratelater_detail",
-    ),
-    # Legacy RateLater API
-    path(
-        "users/me/video_rate_later/",
-        LegacyRateLaterList.as_view(),
-        name="video_rate_later_list",
-    ),
-    path(
-        "users/me/video_rate_later/<str:video_id>/",
-        LegacyRateLaterDetail.as_view(),
-        name="video_rate_later_detail",
     ),
     # Ratings API
     path(
@@ -190,5 +177,16 @@ urlpatterns = [
         "polls/<str:name>/entities/<str:uid>/criteria_scores_distributions",
         PollsCriteriaScoreDistributionView.as_view(),
         name="polls_score_distribution",
+    ),
+    # Website Previews
+    path(
+        "preview/entities/<str:uid>",
+        DynamicWebsitePreviewEntity.as_view(),
+        name="website_preview_entity",
+    ),
+    re_path(
+        r"^preview/.*$",
+        DynamicWebsitePreviewDefault.as_view(),
+        name="website_preview_default",
     ),
 ]
