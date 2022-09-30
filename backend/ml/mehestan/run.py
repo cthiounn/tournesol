@@ -212,7 +212,7 @@ def run_mehestan(ml_input: MlInput, poll: Poll, unsave: bool, user_id):
     cpu_count = os.cpu_count() or 1
     with Pool(processes=max(1, cpu_count - 1)) as pool:
         for _ in pool.imap_unordered(
-            partial(run_mehestan_for_criterion, ml_input=ml_input, poll_pk=poll_pk),
+            partial(run_mehestan_for_criterion, ml_input=ml_input, poll_pk=poll_pk,unsave=unsave,user_id=user_id,),
             remaining_criteria,
         ):
             pass

@@ -1,4 +1,4 @@
-DEBUG: True
+DEBUG: False
 SECRET_KEY: g&*0o49mk(t&*vvdsfsdgfsdgsgesqdg5n*e7ars&$qz*lpi^s$k*
 ALLOWED_HOSTS:
     - localhost

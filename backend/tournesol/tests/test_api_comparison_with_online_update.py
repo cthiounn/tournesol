@@ -336,7 +336,7 @@ class RandomDozenOfComparisonWithOnlineHeuristicMehestanTest(TransactionTestCase
         CriteriaRankFactory(poll=self.poll, criteria__name="criteria1")
         self.number_entities = 20
         self.entities = VideoFactory.create_batch(self.number_entities)
-        self.users = UserFactory.create_batch(1000)
+        self.users = UserFactory.create_batch(100000)
         self.client = APIClient()
         self.list_of_tuple_index = [
             (i, j)

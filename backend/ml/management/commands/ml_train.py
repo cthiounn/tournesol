@@ -35,7 +35,7 @@ class Command(BaseCommand):
         user_id = options["user_id"]
         uid_a = options["uid_a"]
         uid_b = options["uid_b"]
-        uid_b = options["unsave"]
+        unsave = options["unsave"]
         for poll in Poll.objects.filter(active=True):
             ml_input = MlInputFromDb(poll_name=poll.name)
 
@@ -52,6 +52,6 @@ class Command(BaseCommand):
                             ml_input=ml_input, poll=poll, unsave=unsave, user_id=user_id
                         )
                 else:
-                    run_mehestan(ml_input=ml_input, poll=poll)
+                    run_mehestan(ml_input=ml_input, poll=poll, unsave=unsave, user_id=user_id)
             else:
                 raise ValueError(f"unknown algorithm {repr(poll.algorithm)}'")

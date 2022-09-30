@@ -19,7 +19,6 @@ from tournesol.models.poll import ALGORITHM_MEHESTAN
 
 from .inputs import MlInputFromDb
 
-
 def save_entity_scores(
     poll,
     entity_scores: Union[pd.DataFrame, Iterable[tuple]],
@@ -66,12 +65,13 @@ def save_entity_scores(
         )
 
 
-def save_tournesol_scores(poll):
+def save_tournesol_scores(poll, list_of_entities=None):
     entities = []
+    entities_to_look_through=Entity.objects.filter(all_criteria_scores__poll=poll).distinct().with_prefetched_scores(poll_name=poll.name)
+    if list_of_entities:
+        entities_to_look_through=entities_to_look_through.filter(uid__in=list_of_entities)
     for entity in (
-        Entity.objects.filter(all_criteria_scores__poll=poll)
-        .distinct()
-        .with_prefetched_scores(poll_name=poll.name)
+        entities_to_look_through
     ):
         if poll.algorithm == ALGORITHM_MEHESTAN:
             # The tournesol score is simply the score associated with the main criteria
