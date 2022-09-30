@@ -1,12 +1,9 @@
 import logging
-import os
 from functools import partial
-from multiprocessing import Pool
 from typing import Set, Tuple
 
 import numpy as np
 import pandas as pd
-from django import db
 
 from core.models import User
 from ml.inputs import MlInput, MlInputFromDb

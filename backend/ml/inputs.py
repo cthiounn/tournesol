@@ -133,17 +133,17 @@ class MlInputFromDb(MlInput):
         else:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    """
+                """
                 select count(DISTINCT(euid)) FROM
-                    (
+                (
                     select distinct(entity_1_id) as euid from tournesol_comparison 
-                    where poll_id=(select p.id from tournesol_poll p
-                        WHERE p.name = %s) 
-                    union 
+                        where poll_id=(select p.id from tournesol_poll p
+                            WHERE p.name = %s) 
+                        union 
                     select distinct(entity_2_id) as euid from tournesol_comparison 
-                    where poll_id=(select p.id from tournesol_poll p
-                        WHERE p.name = %s) 
-                    ) as subquery
+                        where poll_id=(select p.id from tournesol_poll p
+                            WHERE p.name = %s) 
+                ) as subquery
                 """,
                     (
                         self.poll_name,
