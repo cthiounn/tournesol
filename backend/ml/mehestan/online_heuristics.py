@@ -281,7 +281,7 @@ def apply_and_return_scaling_on_individual_scores_online_heuristics(
         user_id, entity_id_b, theta_star_b, delta_star_b, all_indiv_score
     )
 
-    df_ratings = ml_input.get_ratings_properties()
+    df_ratings = ml_input.get_ratings_properties(django_orm_union=False)
     df = all_indiv_score.merge(df_ratings, how="inner", on=["user_id", "entity_id"])
 
     df["is_public"].fillna(False, inplace=True)
@@ -380,7 +380,6 @@ def run_online_heuristics(
     user_id: str,
     poll: Poll,
     delete_comparison_case: bool,
-    parallel_computing: bool = True,
 ):
     """
     This function use multiprocessing.
@@ -436,25 +435,15 @@ def run_online_heuristics(
     )
     # compute each criterion in parallel
     remaining_criteria = [c for c in criteria if c != poll.main_criteria]
-    if parallel_computing:
-        os.register_at_fork(before=db.connections.close_all)
 
-        cpu_count = os.cpu_count() or 1
-        with Pool(processes=max(1, cpu_count - 1)) as pool:
-            for _ in pool.imap_unordered(
-                partial_online_heuristics,
-                remaining_criteria,
-            ):
-                pass
-    else:
-        for criterion in remaining_criteria:
-            logger.info(
-                "Sequential Online Heuristic Mehestan  \
-                for poll '%s  for criterion '%s': Start ",
-                poll.name,
-                criterion,
-            )
-            partial_online_heuristics(criterion)
+    for criterion in remaining_criteria:
+        logger.info(
+            "Sequential Online Heuristic Mehestan  \
+            for poll '%s  for criterion '%s': Start ",
+            poll.name,
+            criterion,
+        )
+        partial_online_heuristics(criterion)
 
     logger.info("Online Heuristic Mehestan for poll '%s': Done", poll.name)
 
@@ -470,5 +459,4 @@ def update_user_scores(
         user_id=user.pk,
         poll=poll,
         delete_comparison_case=delete_comparison_case,
-        parallel_computing=False,
     )

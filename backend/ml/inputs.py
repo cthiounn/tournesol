@@ -38,7 +38,7 @@ class MlInput(ABC):
         pass
 
     @abstractmethod
-    def get_ratings_properties(self) -> pd.DataFrame:
+    def get_ratings_properties(self, django_orm_union=True) -> pd.DataFrame:
         """Fetch data about contributor ratings properties
 
         Returns:
@@ -88,7 +88,7 @@ class MlInputFromPublicDataset(MlInput):
             df = df[df.user_id == user_id]
         return df[["user_id", "entity_a", "entity_b", "criteria", "score", "weight"]]
 
-    def get_ratings_properties(self):
+    def get_ratings_properties(self, django_orm_union=True):
         user_entities_pairs = pd.Series(
             iter(
                 set(self.public_dataset.groupby(["user_id", "entity_a"]).indices.keys())
@@ -119,7 +119,7 @@ class MlInputFromDb(MlInput):
     def __init__(self, poll_name: str):
         self.poll_name = poll_name
 
-    def get_supertrusted_users(self, django_orm_union=False) -> QuerySet[User]:
+    def get_supertrusted_users(self, django_orm_union=True) -> QuerySet[User]:
         if django_orm_union:
             n_alternatives = (
                 Entity.objects.filter(comparisons_entity_1__poll__name=self.poll_name)
@@ -229,7 +229,7 @@ class MlInputFromDb(MlInput):
             ]
         )
 
-    def get_ratings_properties(self):
+    def get_ratings_properties(self, django_orm_union=True):
         values = (
             ContributorRating.objects.filter(
                 poll__name=self.poll_name,
@@ -240,7 +240,10 @@ class MlInputFromDb(MlInput):
                 ),
                 is_supertrusted=Case(
                     When(
-                        user__in=self.get_supertrusted_users().values("id"), then=True
+                        user__in=self.get_supertrusted_users(
+                            django_orm_union=django_orm_union
+                        ).values("id"),
+                        then=True,
                     ),
                     default=False,
                 ),
