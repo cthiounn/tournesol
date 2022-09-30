@@ -133,7 +133,7 @@ class MlInputFromDb(MlInput):
         else:
             with connection.cursor() as cursor:
                 cursor.execute(
-                """
+                    """
                 select count(DISTINCT(euid)) FROM
                 (
                     select distinct(entity_1_id) as euid from tournesol_comparison 
