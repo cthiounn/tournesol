@@ -136,13 +136,13 @@ class MlInputFromDb(MlInput):
                     """
                 select count(DISTINCT(euid)) FROM
                 (
-                    select distinct(entity_1_id) as euid from tournesol_comparison 
+                    select distinct(entity_1_id) as euid from tournesol_comparison
                         where poll_id=(select p.id from tournesol_poll p
-                            WHERE p.name = %s) 
-                        union 
-                    select distinct(entity_2_id) as euid from tournesol_comparison 
+                            WHERE p.name = %s)
+                        union
+                    select distinct(entity_2_id) as euid from tournesol_comparison
                         where poll_id=(select p.id from tournesol_poll p
-                            WHERE p.name = %s) 
+                            WHERE p.name = %s)
                 ) as subquery
                 """,
                     (
