@@ -259,25 +259,10 @@ def apply_and_return_scaling_on_individual_scores_online_heuristics(
     entity_id_a, theta_star_a, delta_star_a = new_data_a
     entity_id_b, theta_star_b, delta_star_b = new_data_b
     all_user_scalings = ml_input.get_user_scalings()
-    all_indiv_score_a = ml_input.get_indiv_score(
-        entity_id=entity_id_a, criteria=criteria
-    )
-    all_indiv_score_b = ml_input.get_indiv_score(
-        entity_id=entity_id_b, criteria=criteria
-    )
 
-    if all_indiv_score_b.empty:
-        if all_indiv_score_a.empty:
-            all_indiv_score = pd.DataFrame(
-                columns=["user_id", "entity_id", "raw_score", "raw_uncertainty"]
-            )
-        else:
-            all_indiv_score = all_indiv_score_a
-    else:
-        if all_indiv_score_a.empty:
-            all_indiv_score = all_indiv_score_b
-        else:
-            all_indiv_score = pd.concat([all_indiv_score_a, all_indiv_score_b])
+    all_indiv_score = ml_input.get_indiv_score(
+        entity_id_in=[entity_id_a, entity_id_b], criteria=criteria
+    )
 
     if all_indiv_score.empty:
         all_indiv_score = pd.DataFrame(
@@ -296,9 +281,8 @@ def apply_and_return_scaling_on_individual_scores_online_heuristics(
         user_id, entity_id_b, theta_star_b, delta_star_b, all_indiv_score
     )
 
-    df = all_indiv_score.merge(
-        ml_input.get_ratings_properties(), how="inner", on=["user_id", "entity_id"]
-    )
+    df_ratings = ml_input.get_ratings_properties()
+    df = all_indiv_score.merge(df_ratings, how="inner", on=["user_id", "entity_id"])
 
     df["is_public"].fillna(False, inplace=True)
     df["is_trusted"].fillna(False, inplace=True)
