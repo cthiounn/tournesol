@@ -435,7 +435,8 @@ def run_online_heuristics(
         user_id=user_id,
         delete_comparison_case=delete_comparison_case,
     )
-    save_tournesol_scores(poll)
+
+    save_tournesol_scores(poll, list_of_entities=[uid_a, uid_b])
     logger.info(
         "Online Heuristic Mehestan for poll '%s': main_criteria Done", poll.name
     )
