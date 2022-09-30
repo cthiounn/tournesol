@@ -78,6 +78,8 @@ def run_mehestan_for_criterion(
     criteria: str,
     ml_input: MlInput,
     poll_pk: int,
+    user_id,
+    unsave: bool,
     update_poll_scaling=False,
 ):
     """
@@ -93,10 +95,33 @@ def run_mehestan_for_criterion(
     )
 
     indiv_scores = get_individual_scores(
-        ml_input,
-        criteria=criteria,
+        ml_input, criteria=criteria, single_user_id=user_id
     )
+
+    if unsave:
+        print("=" * 100)
+        df_heur = ml_input.get_indiv_score(user_id=user_id)
+        indiv_scores = indiv_scores.reset_index().set_index(["user_id", "entity_id"])
+        df_heur = df_heur.reset_index().set_index(["user_id", "entity_id"])
+        df = indiv_scores.join(df_heur, lsuffix="_l", rsuffix="_r")
+        df_sub = df[df.raw_score_l > df.raw_score_r]
+        df_on = df[df.raw_score_l < df.raw_score_r]
+        df_u_sub = df[df.raw_uncertainty_l > df.raw_uncertainty_r]
+        df_u_on = df[df.raw_uncertainty_l < df.raw_uncertainty_r]
+        print(df)
+        print(
+            "mea_score",
+            sum(abs(df["raw_score_l"] - df["raw_score_r"])),
+            sum(abs(df_sub["raw_score_l"] - df_sub["raw_score_r"])),
+            sum(abs(df_on["raw_score_l"] - df_on["raw_score_r"])),
+            sum(abs(df["raw_uncertainty_l"] - df["raw_uncertainty_r"])),
+            sum(abs(df_u_sub["raw_uncertainty_l"] - df_u_sub["raw_uncertainty_r"])),
+            sum(abs(df_u_on["raw_uncertainty_l"] - df_u_on["raw_uncertainty_r"])),
+            df.shape,
+        )
+        return
     logger.debug("Individual scores computed for crit '%s'", criteria)
+    print(indiv_scores)
     scaled_scores, scalings = compute_scaled_scores(
         ml_input, individual_scores=indiv_scores
     )
@@ -138,7 +163,7 @@ def run_mehestan_for_criterion(
     )
 
 
-def run_mehestan(ml_input: MlInput, poll: Poll):
+def run_mehestan(ml_input: MlInput, poll: Poll, unsave: bool, user_id):
     """
     This function use multiprocessing.
 
@@ -178,6 +203,8 @@ def run_mehestan(ml_input: MlInput, poll: Poll):
         poll_pk=poll_pk,
         criteria=poll.main_criteria,
         update_poll_scaling=True,
+        unsave=unsave,
+        user_id=user_id,
     )
 
     # compute each criterion in parallel
@@ -185,7 +212,7 @@ def run_mehestan(ml_input: MlInput, poll: Poll):
     cpu_count = os.cpu_count() or 1
     with Pool(processes=max(1, cpu_count - 1)) as pool:
         for _ in pool.imap_unordered(
-            partial(run_mehestan_for_criterion, ml_input=ml_input, poll_pk=poll_pk),
+            partial(run_mehestan_for_criterion, ml_input=ml_input, poll_pk=poll_pk,unsave=unsave,user_id=user_id,),
             remaining_criteria,
         ):
             pass

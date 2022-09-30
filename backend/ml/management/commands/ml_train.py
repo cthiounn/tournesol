@@ -21,6 +21,11 @@ class Command(BaseCommand):
             action="store_true",
             help="Run online heuristic for used_id, uid_a, uid_b",
         )
+        parser.add_argument(
+            "--unsave",
+            action="store_true",
+            help="run ml for indiv score but don't save",
+        )
         parser.add_argument("--user_id")
         parser.add_argument("--uid_a")
         parser.add_argument("--uid_b")
@@ -30,6 +35,7 @@ class Command(BaseCommand):
         user_id = options["user_id"]
         uid_a = options["uid_a"]
         uid_b = options["uid_b"]
+        unsave = options["unsave"]
         for poll in Poll.objects.filter(active=True):
             ml_input = MlInputFromDb(poll_name=poll.name)
 
@@ -42,14 +48,10 @@ class Command(BaseCommand):
                             "You should provide user_id, uid_a, uid_b with --online-heuristic"
                         )
                     else:
-                        run_online_heuristics(
-                            ml_input=ml_input,
-                            poll=poll,
-                            user_id=user_id,
-                            uid_a=uid_a,
-                            uid_b=uid_b,
+                        run_mehestan(
+                            ml_input=ml_input, poll=poll, unsave=unsave, user_id=user_id
                         )
                 else:
-                    run_mehestan(ml_input=ml_input, poll=poll)
+                    run_mehestan(ml_input=ml_input, poll=poll, unsave=unsave, user_id=user_id)
             else:
                 raise ValueError(f"unknown algorithm {repr(poll.algorithm)}'")

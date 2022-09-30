@@ -3,14 +3,18 @@ import os
 from functools import partial
 from multiprocessing import Pool
 from typing import Set, Tuple
-
+import timeit
 import numpy as np
 import pandas as pd
 from django import db
 
 from core.models import User
 from ml.inputs import MlInput, MlInputFromDb
-from ml.outputs import save_contributor_scores, save_entity_scores, save_tournesol_scores
+from ml.outputs import (
+    save_contributor_scores,
+    save_entity_scores,
+    save_tournesol_scores,
+)
 from tournesol.models import Entity, Poll
 from tournesol.models.entity_score import ScoreMode
 from tournesol.utils.constants import COMPARISON_MAX
@@ -22,7 +26,7 @@ from .poll_scaling import (
     apply_poll_scaling_on_individual_scaled_scores,
 )
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("toto")
 
 R_MAX = COMPARISON_MAX
 TAU_SUBITERATION_NUMBER = 2
@@ -33,6 +37,7 @@ def get_new_scores_from_online_update(
     all_comparison_user_for_criteria: pd.DataFrame,
     set_of_entity_to_update: Set[str],
     previous_individual_raw_scores: pd.DataFrame,
+    previous_raw_uncertainties: pd.DataFrame,
 ) -> Tuple[pd.DataFrame]:
     new_raw_scores = previous_individual_raw_scores
     new_raw_uncertainties = pd.DataFrame(set_of_entity_to_update, columns=["entity_id"])
@@ -79,7 +84,17 @@ def get_new_scores_from_online_update(
     delta_star = pd.Series(np.sqrt(sigma2) / np.sqrt(Kaa_np), index=k.index)
     new_raw_uncertainties = delta_star.to_frame(name="raw_uncertainty")
 
-    return new_raw_scores_to_return, new_raw_uncertainties
+    new_raw_uncertainties_to_return = previous_raw_uncertainties
+
+
+
+    for entity in all_entities:
+        if not new_raw_uncertainties_to_return.index.isin([entity]).any():
+            new_raw_uncertainties_to_return.loc[entity] = np.NaN
+    new_raw_uncertainties_to_return.loc[
+        list(set_of_entity_to_update)
+    ] = new_raw_uncertainties.loc[list(set_of_entity_to_update)]
+    return new_raw_scores_to_return, new_raw_uncertainties_to_return
 
 
 def _run_online_heuristics_for_criterion(
@@ -108,11 +123,15 @@ def _run_online_heuristics_for_criterion(
         and we apply poll level scaling at global scores
 
     """
+
+    start_time2 = timeit.default_timer()
     poll = Poll.objects.get(pk=poll_pk)
+
+    start_time = timeit.default_timer()
     all_comparison_of_user_for_criteria = ml_input.get_comparisons(
         criteria=criteria, user_id=user_id
     )
-
+    logger.info("time_heur_getcomparison {}".format(timeit.default_timer() - start_time))
     entity_id_a = Entity.objects.get(uid=uid_a).pk
     entity_id_b = Entity.objects.get(uid=uid_b).pk
 
@@ -135,16 +154,29 @@ def _run_online_heuristics_for_criterion(
         return
 
     set_of_entity_to_update = {entity_id_a, entity_id_b}
-    previous_individual_raw_scores = ml_input.get_indiv_score(
+
+    start_time = timeit.default_timer()
+    previous_individual_raw_scores_uncertainties = ml_input.get_indiv_score(
         user_id=user_id, criteria=criteria
     )
-    previous_individual_raw_scores = previous_individual_raw_scores[
+
+    logger.info("time_heur_getindivscore {}".format(timeit.default_timer() - start_time))
+    previous_individual_raw_scores = previous_individual_raw_scores_uncertainties[
         ["entity_id", "raw_score"]
     ]
     previous_individual_raw_scores = previous_individual_raw_scores.set_index(
         "entity_id"
     )
+
+    previous_individual_raw_uncertainties = (
+        previous_individual_raw_scores_uncertainties[["entity_id", "raw_uncertainty"]]
+    )
+    previous_individual_raw_uncertainties = (
+        previous_individual_raw_uncertainties.set_index("entity_id")
+    )
     new_raw_scores = previous_individual_raw_scores
+    new_raw_uncertainties = previous_individual_raw_uncertainties
+    start_time = timeit.default_timer()
     for tau in range(0, TAU_SUBITERATION_NUMBER):
         if tau > 0:
             set_of_entity_to_update = compute_and_give_next_set_of_entity_to_update(
@@ -157,7 +189,10 @@ def _run_online_heuristics_for_criterion(
             all_comparison_of_user_for_criteria,
             set_of_entity_to_update,
             new_raw_scores,
+            new_raw_uncertainties,
         )
+        print(tau, new_raw_scores, sum(new_raw_scores["raw_score"]))
+    logger.info("time_heur_indiv {}".format(timeit.default_timer() - start_time))
 
     # so far we have recompute new indiv score for a and b and neighbours,
     # we need to recompute global score for a and b
@@ -179,19 +214,26 @@ def _run_online_heuristics_for_criterion(
     new_data_b = (entity_id_b, theta_star_b, delta_star_b)
 
     new_df = new_raw_scores.join(new_raw_uncertainties)
+
+    start_time = timeit.default_timer()
     partial_scaled_scores_for_ab = (
         apply_and_return_scaling_on_individual_scores_online_heuristics(
             criteria, ml_input, new_data_a, new_data_b, user_id
         )
     )
-
+    logger.info("time_heur_scaling {}".format(timeit.default_timer() - start_time))
     if not partial_scaled_scores_for_ab.empty:
+
+        start_time = timeit.default_timer()
         calculate_and_save_global_scores_in_all_score_mode(
             criteria, poll, partial_scaled_scores_for_ab
         )
+        logger.info("time_heur_globalscore {}".format(timeit.default_timer() - start_time))
+        start_time = timeit.default_timer()
         apply_poll_scaling_on_individual_scaled_scores(
             poll, partial_scaled_scores_for_ab
         )
+        logger.info("time_heur_pollscaling {}".format(timeit.default_timer() - start_time))
 
         # we want to save only individual scores of user
         score_to_save = ml_input.get_indiv_score(user_id=user_id)
@@ -200,15 +242,25 @@ def _run_online_heuristics_for_criterion(
             score_to_save = add_or_update_df_indiv_score(
                 user_id, entity_id_a, theta_star_a, delta_star_a, score_to_save
             )
-
+        # score_to_save = add_or_update_df_indiv_score(
+        #     user_id, entity_id_a, theta_star_a, delta_star_a, score_to_save
+        # )
+        # score_to_save = add_or_update_df_indiv_score(
+        #     user_id, entity_id_b, theta_star_b, delta_star_b, score_to_save
+        # )
         score_to_save["criteria"] = criteria
-
+        # print("TO_SAVE", score_to_save)
+        print("sigma_score", sum(score_to_save["raw_score"]))
+        start_time = timeit.default_timer()
         save_contributor_scores(
             poll,
             score_to_save,
             single_criteria=criteria,
             single_user_id=user_id,
         )
+        logger.info("time_heur_save {}".format(timeit.default_timer() - start_time))
+    logger.info("time_heur_one {}".format(timeit.default_timer() - start_time2))
+
 
 
 def compute_and_give_next_set_of_entity_to_update(
@@ -258,27 +310,13 @@ def apply_and_return_scaling_on_individual_scores_online_heuristics(
     """
     entity_id_a, theta_star_a, delta_star_a = new_data_a
     entity_id_b, theta_star_b, delta_star_b = new_data_b
+
     all_user_scalings = ml_input.get_user_scalings()
-    all_indiv_score_a = ml_input.get_indiv_score(
-        entity_id=entity_id_a, criteria=criteria
-    )
-    all_indiv_score_b = ml_input.get_indiv_score(
-        entity_id=entity_id_b, criteria=criteria
-    )
 
-    if all_indiv_score_b.empty:
-        if all_indiv_score_a.empty:
-            all_indiv_score = pd.DataFrame(
-                columns=["user_id", "entity_id", "raw_score", "raw_uncertainty"]
-            )
-        else:
-            all_indiv_score = all_indiv_score_a
-    else:
-        if all_indiv_score_a.empty:
-            all_indiv_score = all_indiv_score_b
-        else:
-            all_indiv_score = pd.concat([all_indiv_score_a, all_indiv_score_b])
-
+    all_indiv_score=ml_input.get_indiv_score(
+        entity_id_in=[entity_id_a,entity_id_b], criteria=criteria
+    )
+ 
     if all_indiv_score.empty:
         all_indiv_score = pd.DataFrame(
             {
@@ -296,8 +334,8 @@ def apply_and_return_scaling_on_individual_scores_online_heuristics(
         user_id, entity_id_b, theta_star_b, delta_star_b, all_indiv_score
     )
 
-    df = all_indiv_score.merge(
-        ml_input.get_ratings_properties(), how="inner", on=["user_id", "entity_id"]
+    df_ratings=ml_input.get_ratings_properties()
+    df = all_indiv_score.merge(df_ratings, how="inner", on=["user_id", "entity_id"]
     )
 
     df["is_public"].fillna(False, inplace=True)
@@ -435,7 +473,11 @@ def run_online_heuristics(
         user_id=user_id,
         delete_comparison_case=delete_comparison_case,
     )
-    save_tournesol_scores(poll)
+    start_time = timeit.default_timer()
+    logger.info("{} {}".format(uid_a,uid_b))
+    save_tournesol_scores(poll,list_of_entities=[uid_a,uid_b])
+    logger.info("time_heur_tournesol_score {}".format(timeit.default_timer() - start_time))
+    
     logger.info(
         "Online Heuristic Mehestan for poll '%s': main_criteria Done", poll.name
     )
@@ -477,7 +519,10 @@ def run_online_heuristics(
 def update_user_scores(
     poll: Poll, user: User, uid_a: str, uid_b: str, delete_comparison_case: bool
 ):
+
     ml_input = MlInputFromDb(poll_name=poll.name)
+
+    start_time = timeit.default_timer()
     run_online_heuristics(
         ml_input=ml_input,
         uid_a=uid_a,
@@ -487,3 +532,4 @@ def update_user_scores(
         delete_comparison_case=delete_comparison_case,
         parallel_computing=False,
     )
+    logger.info("time_heur {}".format(timeit.default_timer() - start_time))

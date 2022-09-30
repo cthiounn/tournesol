@@ -177,7 +177,7 @@ DATABASES = {
     "default": {
         "ENGINE": "django_prometheus.db.backends.postgresql",
         "NAME": server_settings.get("DATABASE_NAME", "tournesol"),
-        "USER": server_settings.get("DATABASE_USER", "postgres"),
+        "USER": server_settings.get("DATABASE_USER", "tournesol"),
         "PASSWORD": server_settings.get("DATABASE_PASSWORD", "password"),
         "HOST": server_settings.get("DATABASE_HOST", "localhost"),
         "PORT": server_settings.get("DATABASE_PORT", 5432),
@@ -345,28 +345,67 @@ DISCORD_CHANNEL_WEBHOOKS = server_settings.get("DISCORD_CHANNEL_WEBHOOKS", {})
 
 TWITTERBOT_CREDENTIALS = server_settings.get("TWITTERBOT_CREDENTIALS", {})
 
+# LOGGING = {
+#     "version": 1,
+#     "disable_existing_loggers": False,
+#     "handlers": {
+#         "console": {
+#             "class": "logging.StreamHandler",
+#         },
+#         'file': {
+#             'level': 'DEBUG',
+#             'class': 'logging.FileHandler',
+#             'filename': '/tmp/django-debug.log',
+#         },
+#     },
+#     "root": {
+#         "handlers": ["console","file"],
+#         "level": os.environ.get("DJANGO_LOG_LEVEL", "DEBUG"),
+#     },
+#     "loggers": {
+#         'django': {
+#             'handlers': ['file'],
+#             'level': 'DEBUG',
+#             'propagate': True,
+#         },
+#         '': {
+#             'handlers': ['file'],
+#             'level': 'DEBUG',
+#             'propagate': True,
+#         },
+#         "factory": {
+#             "level": "WARN"
+#         },
+#         "faker": {
+#             "level": "INFO"
+#         },
+#         "numexpr": {
+#             "level": "WARN"
+#         }
+#     },
+# }
+
 LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
+    'version': 1,
+    # The version number of our log
+    'disable_existing_loggers': False,
+    # django uses some of its own loggers for internal operations. In case you want to disable them just replace the False above with true.
+    # A handler for WARNING. It is basically writing the WARNING messages into a file called WARNING.log
+    'handlers': {
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'debug.log',
         },
     },
-    "root": {
-        "handlers": ["console"],
-        "level": os.environ.get("DJANGO_LOG_LEVEL", "DEBUG"),
-    },
-    "loggers": {
-        "factory": {
-            "level": "WARN"
+    # A logger for WARNING which has a handler called 'file'. A logger can have multiple handler
+    'loggers': {
+       # notice the blank '', Usually you would put built in loggers like django or root here based on your needs
+        'toto': {
+            'handlers': ['file'], #notice how file variable is called in handler which has been defined above
+            'level': 'DEBUG',
+            'propagate': True,
         },
-        "faker": {
-            "level": "INFO"
-        },
-        "numexpr": {
-            "level": "WARN"
-        }
     },
 }
 
@@ -384,7 +423,7 @@ VIDEO_METADATA_EXPIRE_SECONDS = 2 * 24 * 3600  # 2 days
 
 RECOMMENDATIONS_MIN_CONTRIBUTORS = 2
 
-UPDATE_MEHESTAN_SCORES_ON_COMPARISON = False
+UPDATE_MEHESTAN_SCORES_ON_COMPARISON = True
 
 # Configuration of the app `core`
 # See the documentation for the complete description.

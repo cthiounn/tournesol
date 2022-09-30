@@ -16,7 +16,6 @@ from tournesol.models.poll import ALGORITHM_MEHESTAN
 from tournesol.serializers.comparison import ComparisonSerializer, ComparisonUpdateSerializer
 from tournesol.views.mixins.poll import PollScopedViewMixin
 
-
 class InactivePollError(exceptions.PermissionDenied):
     default_detail = _("This action is not allowed on an inactive poll.")
 
